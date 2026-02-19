@@ -1,3 +1,5 @@
+19.02
+
 1. Empty project (flutter)
 2. Find 5 examples of apps
 3. assets for the porject (images, GIFs etc)
