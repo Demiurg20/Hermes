@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 class AppTheme {
-  static ThemeData lightTheme = ThemeData(
+  static ThemeData darkTheme = ThemeData(
     scaffoldBackgroundColor: AppColors.background,
-    primaryColor: AppColors.background,
-    useMaterial3: true,
+    brightness: Brightness.dark,
+    fontFamily: 'SF Pro',
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.input,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+    ),
   );
 }
