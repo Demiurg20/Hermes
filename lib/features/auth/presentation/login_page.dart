@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import '/core/api/api_service.dart';
-import '/core/api/token_storage.dart';
-import '/core/widgets/auth_button.dart';
-import '/core/widgets/auth_textfield.dart';
-import '/core/theme/app_colors.dart';
-import '/features/home/home_page.dart';
+import 'package:hermes/core/api/api_service.dart';
+import 'package:hermes/core/api/token_storage.dart';
+import 'package:hermes/core/widgets/auth_button.dart';
+import 'package:hermes/core/widgets/auth_textfield.dart';
+import 'package:hermes/core/theme/app_colors.dart';
+import 'package:hermes/features/home/home_page.dart';
 import 'register_page.dart';
+
+/// 🔥 ВКЛ / ВЫКЛ MOCK ЛОГИНА
+const bool useMockLogin = true;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -26,12 +29,19 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = true);
 
     try {
-      final token = await api.login(
-        emailController.text.trim(),
-        passwordController.text.trim(),
-      );
+      if (useMockLogin) {
+        /// 🧪 MOCK РЕЖИМ
+        await Future.delayed(const Duration(seconds: 1));
+        await TokenStorage.saveToken("mock_token");
+      } else {
+        /// 🌐 РЕАЛЬНЫЙ API
+        final token = await api.login(
+          emailController.text.trim(),
+          passwordController.text.trim(),
+        );
 
-      await TokenStorage.saveToken(token);
+        await TokenStorage.saveToken(token);
+      }
 
       if (!mounted) return;
 
@@ -43,14 +53,17 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Login failed")),
       );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
-
-    setState(() => isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
@@ -63,9 +76,10 @@ class _LoginPageState extends State<LoginPage> {
               child: Text(
                 "DA",
                 style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black),
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
               ),
             ),
 
@@ -73,7 +87,10 @@ class _LoginPageState extends State<LoginPage> {
 
             const Text(
               "DAI AUTO",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
 
             const Text(

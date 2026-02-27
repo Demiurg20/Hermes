@@ -46,7 +46,7 @@ class HermesApp extends StatelessWidget {
       //home: SelectCarPage(cars: cars),
 
       // 🔁 Потом вернёшь обратно:
-      home: const EditProfilePage(),
+      home: const LoginPage(),
     );
   }
 }

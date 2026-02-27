@@ -4,6 +4,11 @@ import '/core/theme/app_colors.dart';
 import '/features/auth/presentation/login_page.dart';
 import 'home_page.dart';
 
+/// 🔥 ВКЛ / ВЫКЛ MOCK режима
+/// true  → всегда открывает Login (для демонстрации)
+/// false → работает реальная проверка токена
+const bool useMockLogin = true;
+
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -20,11 +25,23 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> checkAuth() async {
-    final token = await TokenStorage.getToken();
 
-    await Future.delayed(const Duration(seconds: 1)); // маленькая задержка для красоты
+    // Небольшая задержка для красивого splash
+    await Future.delayed(const Duration(seconds: 1));
 
     if (!mounted) return;
+
+    /// 🧪 MOCK режим
+    if (useMockLogin) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      return;
+    }
+
+    /// 🌐 Реальная проверка токена
+    final token = await TokenStorage.getToken();
 
     if (token != null) {
       Navigator.pushReplacement(
