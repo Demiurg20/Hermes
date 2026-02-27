@@ -6,8 +6,6 @@ import '/features/profile/edit_profile_page.dart';
 import '/features/cars/select_car_page.dart';
 import '../cars/car.dart';
 
-const bool useMockCars = true;
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -18,7 +16,21 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
 
   List<Car> cars = [];
+  List<Car> filteredCars = [];
+
   bool isLoading = true;
+
+  String selectedLocation = "Moscow City Center";
+
+  final List<String> locations = [
+    "Moscow City Center",
+    "Dubai Marina",
+    "Bishkek Downtown",
+    "Karakol Center",
+    "Almaty Business District",
+  ];
+
+  final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
@@ -59,7 +71,49 @@ class _HomePageState extends State<HomePage> {
       ),
     ];
 
+    filteredCars = cars;
+
     setState(() => isLoading = false);
+  }
+
+  void filterCars(String query) {
+    final results = cars.where((car) {
+      return car.name.toLowerCase().contains(query.toLowerCase()) ||
+          car.type.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+
+    setState(() {
+      filteredCars = results;
+    });
+  }
+
+  void showLocationPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.input,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: locations.map((location) {
+            return ListTile(
+              title: Text(
+                location,
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                setState(() {
+                  selectedLocation = location;
+                });
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
   }
 
   Future<void> logout() async {
@@ -96,13 +150,13 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
-                    children: [
-                      const CircleAvatar(radius: 22),
-                      const SizedBox(width: 12),
+                    children: const [
+                      CircleAvatar(radius: 22),
+                      SizedBox(width: 12),
                       Column(
                         crossAxisAlignment:
                         CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
                             "WELCOME BACK",
                             style: TextStyle(
@@ -119,8 +173,6 @@ class _HomePageState extends State<HomePage> {
                       )
                     ],
                   ),
-
-                  /// ✏ EDIT PROFILE
                   IconButton(
                     icon: const Icon(Icons.edit,
                         color: AppColors.primary),
@@ -141,20 +193,21 @@ class _HomePageState extends State<HomePage> {
 
               /// 🔍 SEARCH
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppColors.input,
-                  borderRadius:
-                  BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: const TextField(
-                  decoration: InputDecoration(
+                child: TextField(
+                  controller: searchController,
+                  onChanged: filterCars,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
                     icon: Icon(Icons.search,
                         color: AppColors.greyText),
                     hintText: "Search cars...",
-                    hintStyle: TextStyle(
-                        color: AppColors.greyText),
+                    hintStyle:
+                    TextStyle(color: AppColors.greyText),
                     border: InputBorder.none,
                   ),
                 ),
@@ -162,45 +215,24 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 20),
 
-              /// 💳 BALANCE CARD
+              /// 💳 BALANCE
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppColors.input,
-                  borderRadius:
-                  BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Your Balance",
-                          style: TextStyle(
-                              color:
-                              AppColors.greyText),
-                        ),
-                        ElevatedButton(
-                          style:
-                          ElevatedButton.styleFrom(
-                            backgroundColor:
-                            AppColors.primary,
-                          ),
-                          onPressed: () {},
-                          child: const Text(
-                            "+ TOP UP",
-                            style: TextStyle(
-                                color: Colors.black),
-                          ),
-                        )
-                      ],
+                  children: const [
+                    Text(
+                      "Your Balance",
+                      style: TextStyle(
+                          color: AppColors.greyText),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
+                    SizedBox(height: 10),
+                    Text(
                       "\$150.00",
                       style: TextStyle(
                           fontSize: 32,
@@ -213,95 +245,90 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 20),
 
-              /// 📍 LOCATION
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.input,
-                  borderRadius:
-                  BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.location_on,
-                        color: AppColors.primary),
-                    SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Pickup location",
-                          style: TextStyle(
-                              color:
-                              AppColors.greyText),
-                        ),
-                        Text(
-                          "Moscow City Center",
-                          style: TextStyle(
-                              fontWeight:
-                              FontWeight.bold),
-                        ),
-                      ],
-                    )
-                  ],
+              /// 📍 LOCATION (Clickable)
+              GestureDetector(
+                onTap: showLocationPicker,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.input,
+                    borderRadius:
+                    BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on,
+                          color: AppColors.primary),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Pickup location",
+                            style: TextStyle(
+                                color:
+                                AppColors.greyText),
+                          ),
+                          Text(
+                            selectedLocation,
+                            style: const TextStyle(
+                                fontWeight:
+                                FontWeight.bold),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
                 ),
               ),
 
               const SizedBox(height: 25),
 
-              /// 🚗 POPULAR CARS
-              Row(
-                mainAxisAlignment:
-                MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Popular Cars",
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight:
-                        FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Popular Cars",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              SelectCarPage(
-                                  cars: cars),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "View all",
-                      style: TextStyle(
-                          color:
-                          AppColors.primary),
-                    ),
-                  )
-                ],
-              ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SelectCarPage(cars: cars),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "View all",
+                    style: TextStyle(color: AppColors.primary),
+                  ),
+                ),
+              ],
+            ),
 
               const SizedBox(height: 10),
 
-              ...cars.map((car) => Container(
-                margin: const EdgeInsets.only(
-                    bottom: 15),
+              ...filteredCars.map((car) => Container(
+                margin:
+                const EdgeInsets.only(bottom: 15),
                 padding:
                 const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppColors.input,
                   borderRadius:
-                  BorderRadius.circular(
-                      16),
+                  BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
                     ClipRRect(
                       borderRadius:
-                      BorderRadius
-                          .circular(12),
+                      BorderRadius.circular(12),
                       child: Image.network(
                         car.image,
                         width: 90,
@@ -313,8 +340,7 @@ class _HomePageState extends State<HomePage> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
+                        CrossAxisAlignment.start,
                         children: [
                           Text(
                             car.name,
@@ -327,7 +353,7 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(
                               height: 4),
                           Text(
-                            "${car.rating}  •  ${car.type}",
+                            "${car.rating} • ${car.type}",
                             style: const TextStyle(
                                 color:
                                 AppColors

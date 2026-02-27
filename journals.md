@@ -10,3 +10,14 @@
 8. Bookng proccess (инвентарь сделать определннное кол-во машин и их состояние (уже забронирован итд))
 9. penalty (правила итд при букинге policy)
 10. таймер (когда чо вернутьБ автоматически считать и цену итд в зависимости от типа машины итд) (дб)
+
+
+27.02
+1. flow chart переделать
+2. project planning ( 8 stages )
+3. gantt chart
+4. backend доделать (returning sequence), img, state of the rent(car), approvement 
+5. front доделать
+6. maps (10 точек)
+7. image for rent, r0 r1 before and after booking
+8. report доделать нормально в нормальном формате отдельную папку итд
