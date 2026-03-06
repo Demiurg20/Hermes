@@ -21,3 +21,5 @@
 6. maps (10 точек)
 7. image for rent, r0 r1 before and after booking
 8. report доделать нормально в нормальном формате отдельную папку итд
+
+

@@ -93,8 +93,8 @@ Design the system architecture and data structure of the application.
 
 At this stage, the system architecture of Hermes is designed. The application follows a client-server architecture where the Flutter mobile application communicates with the backend server through REST API requests.
 
-The database structure is designed to store information about users, vehicles, bookings, and locations. System flowcharts are created to illustrate the main processes of the application such as user authentication, vehicle selection, and the booking process.
-[3/4/2026 8:08 PM] iqoshb: API endpoints are also defined to allow communication between the frontend and backend components.
+The database structure is designed to store information about users, vehicles, bookings, and locations. System flowcharts are created to illustrate the main processes of the application such as user authentication, vehicle selection, and the booking process. 
+API endpoints are also defined to allow communication between the frontend and backend components.
 
 ### Deliverables
 
@@ -239,7 +239,7 @@ Integrate frontend and backend systems and test application functionality.
 * Fixing bugs and improving stability
 
 ### Description
-[3/4/2026 8:08 PM] iqoshb: During this stage, the mobile application is connected to the backend system. The development team performs extensive testing to ensure that all features function correctly.
+During this stage, the mobile application is connected to the backend system. The development team performs extensive testing to ensure that all features function correctly.
 
 Integration testing verifies that communication between the frontend and backend works properly and that data is stored and retrieved correctly from the database.
 
