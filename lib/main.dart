@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hermes/core/theme/app_theme.dart';
 import 'package:hermes/features/auth/presentation/login_page.dart';
-import 'package:hermes/features/home/home_page.dart';
-import 'package:hermes/features/profile/edit_profile_page.dart';
+// import 'package:hermes/features/home/home_page.dart';
+// import 'package:hermes/features/profile/edit_profile_page.dart';
 import 'features/cars/car.dart';
-import 'package:hermes/features/cars/select_car_page.dart';
-import 'package:hermes/features/home/splash_page.dart'; // потом вернёшь
+// import 'package:hermes/features/cars/select_car_page.dart';
+// import 'package:hermes/features/home/splash_page.dart'; // потом вернёшь
 
 void main() {
   runApp(const HermesApp());
@@ -46,7 +46,7 @@ class HermesApp extends StatelessWidget {
       //home: SelectCarPage(cars: cars),
 
       // 🔁 Потом вернёшь обратно:
-      home: const LoginPage(),
+      home: const LicensePage(),
     );
   }
 }
