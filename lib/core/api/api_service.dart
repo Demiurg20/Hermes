@@ -7,7 +7,8 @@ class ApiService {
   ApiService() {
     dio = Dio(
       BaseOptions(
-        baseUrl: "https://your-api.com/api", // ← ВСТАВЬ СВОЙ URL
+        baseUrl:
+        "https://ungrudging-carson-nonvituperatively.ngrok-free.dev/api",
         headers: {"Content-Type": "application/json"},
       ),
     );
@@ -15,11 +16,39 @@ class ApiService {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+
           final token = await TokenStorage.getToken();
+
+          print("------ API REQUEST ------");
+          print("URL: ${options.uri}");
+          print("METHOD: ${options.method}");
+          print("TOKEN: $token");
+
           if (token != null) {
             options.headers["Authorization"] = "Bearer $token";
           }
+
+          print("HEADERS: ${options.headers}");
+
           return handler.next(options);
+        },
+
+        onResponse: (response, handler) {
+
+          print("------ API RESPONSE ------");
+          print("STATUS: ${response.statusCode}");
+          print("DATA: ${response.data}");
+
+          return handler.next(response);
+        },
+
+        onError: (DioException e, handler) {
+
+          print("------ API ERROR ------");
+          print("STATUS: ${e.response?.statusCode}");
+          print("DATA: ${e.response?.data}");
+
+          return handler.next(e);
         },
       ),
     );
@@ -37,16 +66,35 @@ class ApiService {
     return response.data["token"];
   }
 
-  Future<void> register(
-      String name, String email, String password) async {
+  Future<void> register(String email, String password) async {
     await dio.post(
       "/auth/register",
       data: {
-        "name": name,
         "email": email,
         "password": password,
       },
     );
+  }
+
+  Future<void> addUserInfo(FormData formData) async {
+    await dio.post(
+      "/user/info/add",
+      data: formData,
+      options: Options(
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> getUserInfo() async {
+
+    final response = await dio.get("/user/info/");
+
+    print("PROFILE RESPONSE: ${response.data}");
+
+    return response.data;
   }
 
   Future<List<dynamic>> getCars() async {

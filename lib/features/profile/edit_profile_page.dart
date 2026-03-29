@@ -71,28 +71,57 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     try {
 
-      FormData formData = FormData.fromMap({
-        "firstName": firstNameController.text.trim(),
-        "lastName": lastNameController.text.trim(),
-        "phone": phoneController.text.trim(),
-        "personalNumber": personalNumberController.text.trim(),
-        "licenseNumber": licenseNumberController.text.trim(),
-        "gender": gender,
-        "categoryOfLicense": category,
-        "dateOfBirth": dateOfBirth?.toIso8601String(),
-        "dateOfGetDriverLicense": dateOfGetLicense?.toIso8601String(),
-        "dateOfEndDriverLicense": dateOfEndLicense?.toIso8601String(),
-        if (imageFile != null)
-          "image": await MultipartFile.fromFile(
-            imageFile!.path,
-            filename: "profile.jpg",
-          ),
-      });
+      FormData formData = FormData();
 
-      await api.dio.post(
-        "/profile", // ← ВСТАВИШЬ СВОЙ ENDPOINT
-        data: formData,
-      );
+      formData.fields.addAll([
+        MapEntry("firstName", firstNameController.text.trim()),
+        MapEntry("lastName", lastNameController.text.trim()),
+        MapEntry("phone", phoneController.text.trim()),
+        MapEntry("personalNumber", personalNumberController.text.trim()),
+        MapEntry("licenseNumber", licenseNumberController.text.trim()),
+        MapEntry("gender", gender),
+        MapEntry("categoryOfLicense", category),
+      ]);
+
+      if (dateOfBirth != null) {
+        formData.fields.add(
+          MapEntry("dateOfBirth", dateOfBirth!.toString().split(" ")[0]),
+        );
+      }
+
+      if (dateOfGetLicense != null) {
+        formData.fields.add(
+          MapEntry("dateOfGetDriverLicense",
+              dateOfGetLicense!.toString().split(" ")[0]),
+        );
+      }
+
+      if (dateOfEndLicense != null) {
+        formData.fields.add(
+          MapEntry("dateOfEndDriverLicense",
+              dateOfEndLicense!.toString().split(" ")[0]),
+        );
+      }
+
+      if (imageFile != null) {
+
+        final fileName = imageFile!.path.split('/').last;
+
+        formData.files.add(
+          MapEntry(
+            "image",
+            await MultipartFile.fromFile(
+              imageFile!.path,
+              filename: fileName,
+            ),
+          ),
+        );
+      }
+
+      print("FIELDS: ${formData.fields}");
+      print("FILES: ${formData.files}");
+
+      await api.addUserInfo(formData);
 
       if (!mounted) return;
 
@@ -101,12 +130,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
     } catch (e) {
+
+      print("ERROR: $e");
+
+      if (e is DioException) {
+        print("STATUS: ${e.response?.statusCode}");
+        print("DATA: ${e.response?.data}");
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Failed to save profile")),
       );
-    }
 
-    setState(() => isLoading = false);
+    } finally {
+
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+
+    }
   }
 
   Widget buildDateField(String title, DateTime? value, Function(DateTime) onSelected) {
@@ -122,12 +164,66 @@ class _EditProfilePageState extends State<EditProfilePage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              value == null ? title : value.toLocal().toString().split(' ')[0],
+              value == null ? title : value.toString().split(' ')[0],
               style: const TextStyle(color: Colors.white),
             ),
             const Icon(Icons.calendar_today, color: AppColors.greyText),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget buildTextField(String hint, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: controller,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: hint,
+          filled: true,
+          fillColor: AppColors.input,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        validator: (value) =>
+        value == null || value.isEmpty ? "Required" : null,
+      ),
+    );
+  }
+
+  Widget buildDropdown(String label, List<String> items,
+      String value, Function(String) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        dropdownColor: AppColors.input,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: AppColors.input,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        items: items
+            .map((e) => DropdownMenuItem(
+          value: e,
+          child: Text(
+            e,
+            style: const TextStyle(color: Colors.white),
+          ),
+        ))
+            .toList(),
+        onChanged: (v) {
+          if (v != null) {
+            setState(() => onChanged(v));
+          }
+        },
       ),
     );
   }
@@ -203,60 +299,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget buildTextField(
-      String hint, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: controller,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: hint,
-          filled: true,
-          fillColor: AppColors.input,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
-        validator: (value) =>
-        value == null || value.isEmpty ? "Required" : null,
-      ),
-    );
-  }
-
-  Widget buildDropdown(String label, List<String> items,
-      String value, Function(String) onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        value: value,
-        dropdownColor: AppColors.input,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: AppColors.input,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
-        items: items
-            .map((e) => DropdownMenuItem(
-          value: e,
-          child: Text(e,
-              style:
-              const TextStyle(color: Colors.white)),
-        ))
-            .toList(),
-        onChanged: (v) {
-          if (v != null) {
-            setState(() => onChanged(v));
-          }
-        },
       ),
     );
   }

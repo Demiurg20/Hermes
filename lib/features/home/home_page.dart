@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '/core/theme/app_colors.dart';
 import '/core/api/token_storage.dart';
 import '/features/auth/presentation/login_page.dart';
-import '/features/profile/edit_profile_page.dart';
+import '/features/profile/profile_page.dart';
 import '/features/cars/select_car_page.dart';
 import '../cars/car.dart';
 
@@ -181,7 +181,7 @@ class _HomePageState extends State<HomePage> {
                         context,
                         MaterialPageRoute(
                           builder: (_) =>
-                          const EditProfilePage(),
+                          const ProfilePage(),
                         ),
                       );
                     },

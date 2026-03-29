@@ -34,8 +34,8 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => isLoading = true);
 
     try {
+
       await api.register(
-        nameController.text.trim(),
         emailController.text.trim(),
         passwordController.text.trim(),
       );
@@ -48,13 +48,19 @@ class _RegisterPageState extends State<RegisterPage> {
         const SnackBar(content: Text("Account created successfully")),
       );
 
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Registration failed")),
-      );
-    }
+    } catch (e) {
 
-    setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Registration failed: $e")),
+      );
+
+    } finally {
+
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+
+    }
   }
 
   @override

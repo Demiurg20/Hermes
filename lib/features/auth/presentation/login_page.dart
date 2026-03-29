@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:hermes/core/api/api_service.dart';
+import 'package:dio/dio.dart';
 import 'package:hermes/core/api/token_storage.dart';
 import 'package:hermes/core/widgets/auth_button.dart';
 import 'package:hermes/core/widgets/auth_textfield.dart';
 import 'package:hermes/core/theme/app_colors.dart';
 import 'package:hermes/features/home/home_page.dart';
 import 'register_page.dart';
-
-/// 🔥 ВКЛ / ВЫКЛ MOCK ЛОГИНА
-const bool useMockLogin = true;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,30 +15,46 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final api = ApiService();
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
+  final Dio dio = Dio(
+    BaseOptions(
+      baseUrl: "https://ungrudging-carson-nonvituperatively.ngrok-free.dev",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    ),
+  );
+
   bool isLoading = false;
 
   Future<void> login() async {
+
+    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter email and password")),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
-      if (useMockLogin) {
-        /// 🧪 MOCK РЕЖИМ
-        await Future.delayed(const Duration(seconds: 1));
-        await TokenStorage.saveToken("mock_token");
-      } else {
-        /// 🌐 РЕАЛЬНЫЙ API
-        final token = await api.login(
-          emailController.text.trim(),
-          passwordController.text.trim(),
-        );
 
-        await TokenStorage.saveToken(token);
-      }
+      final response = await dio.post(
+        "/api/auth/login",
+        data: {
+          "email": emailController.text.trim(),
+          "password": passwordController.text.trim(),
+        },
+      );
+
+      print("LOGIN RESPONSE: ${response.data}");
+      final token = response.data["token"];
+
+      await TokenStorage.saveToken(token);
 
       if (!mounted) return;
 
@@ -49,14 +62,19 @@ class _LoginPageState extends State<LoginPage> {
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
       );
-    } catch (_) {
+
+    } catch (e) {
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Login failed")),
       );
+
     } finally {
+
       if (mounted) {
         setState(() => isLoading = false);
       }
+
     }
   }
 
