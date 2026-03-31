@@ -41,35 +41,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> loadCars() async {
     await Future.delayed(const Duration(seconds: 1));
 
-    cars = [
-      Car(
-        id: 1,
-        name: "Tesla Model 3",
-        image:
-        "https://images.unsplash.com/photo-1560958089-b8a1929cea89",
-        price: 15,
-        rating: 4.9,
-        type: "Electric",
-      ),
-      Car(
-        id: 2,
-        name: "BMW 5 Series",
-        image:
-        "https://images.unsplash.com/photo-1502877338535-766e1452684a",
-        price: 22,
-        rating: 4.8,
-        type: "Hybrid",
-      ),
-      Car(
-        id: 3,
-        name: "Mercedes C-Class",
-        image:
-        "https://images.unsplash.com/photo-1549924231-f129b911e442",
-        price: 20,
-        rating: 4.7,
-        type: "Petrol",
-      ),
-    ];
+
 
     filteredCars = cars;
 

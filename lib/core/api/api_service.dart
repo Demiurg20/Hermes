@@ -54,6 +54,8 @@ class ApiService {
     );
   }
 
+  /// 🔐 AUTH
+
   Future<String> login(String email, String password) async {
     final response = await dio.post(
       "/auth/login",
@@ -76,6 +78,8 @@ class ApiService {
     );
   }
 
+  /// 👤 PROFILE
+
   Future<void> addUserInfo(FormData formData) async {
     await dio.post(
       "/user/info/add",
@@ -89,16 +93,55 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getUserInfo() async {
-
     final response = await dio.get("/user/info/");
 
     print("PROFILE RESPONSE: ${response.data}");
 
-    return response.data;
+    /// если backend возвращает {data: {...}}
+    if (response.data is Map && response.data["data"] != null) {
+      return Map<String, dynamic>.from(response.data["data"]);
+    }
+
+    return Map<String, dynamic>.from(response.data);
   }
 
-  Future<List<dynamic>> getCars() async {
+  /// 🚗 CARS
+
+  /// список машин
+  Future<List<dynamic>> getCarsBackend() async {
     final response = await dio.get("/cars");
-    return response.data;
+
+    final data = response.data;
+
+    /// если backend вернул {data: []}
+    if (data is Map && data["data"] is List) {
+      return List<dynamic>.from(data["data"]);
+    }
+
+    /// если backend вернул просто []
+    if (data is List) {
+      return data;
+    }
+
+    return [];
+  }
+
+  /// машина по id
+  Future<Map<String, dynamic>> getCarByIdBackend(String id) async {
+    final response = await dio.get("/cars/$id");
+
+    final data = response.data;
+
+    /// если backend вернул {data: {...}}
+    if (data is Map && data["data"] != null) {
+      return Map<String, dynamic>.from(data["data"]);
+    }
+
+    return Map<String, dynamic>.from(data);
+  }
+
+  /// старый метод (можешь удалить потом)
+  Future<List<dynamic>> getCars() async {
+    return await getCarsBackend();
   }
 }
