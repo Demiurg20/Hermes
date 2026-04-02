@@ -16,11 +16,40 @@ class ApiCarRepository implements CarRepository {
 
   @override
   Future<List<Car>> getCars() async {
-    final raw = await _api.getCarsBackend();
-    return raw
-        .whereType<Map>()
-        .map((e) => Car.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
+    // 👇 ДОБАВЬТЕ ЭТОТ БЛОК (try-catch с логированием)
+    try {
+      print("=== FETCHING CARS FROM API ===");
+      final raw = await _api.getCarsBackend();
+      print("RAW DATA TYPE: ${raw.runtimeType}");
+      print("RAW DATA: $raw");
+
+      if (raw.isEmpty) {
+        print("WARNING: Empty list received from API");
+        return [];
+      }
+
+      final cars = raw
+          .whereType<Map>()
+          .map((e) {
+        try {
+          return Car.fromJson(Map<String, dynamic>.from(e));
+        } catch (e, stack) {
+          print("Error parsing car: $e");
+          print("Stack: $stack");
+          print("Problematic data: $e");
+          rethrow;
+        }
+      })
+          .toList();
+
+      print("PARSED ${cars.length} CARS");
+      return cars;
+    } catch (e, stack) {
+      print("ERROR in getCars: $e");
+      print("Stack: $stack");
+      rethrow;
+    }
+    // 👆 КОНЕЦ ДОБАВЛЕННОГО БЛОКА
   }
 
   @override
@@ -92,7 +121,7 @@ class MockCarRepository implements CarRepository {
     final cars = await getCars();
     return cars.firstWhere(
           (c) => c.id == id,
-      orElse: () => cars.first,
+      orElse: () => throw StateError('Car not found: $id'),
     );
   }
 }

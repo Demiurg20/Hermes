@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/core/theme/app_colors.dart';
 import '/core/api/token_storage.dart';
+import '/core/app/app_di.dart';
 import '/features/auth/presentation/login_page.dart';
 import '/features/profile/profile_page.dart';
 import '/features/cars/select_car_page.dart';
@@ -39,13 +40,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> loadCars() async {
-    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      isLoading = true;
+    });
 
-
-
-    filteredCars = cars;
-
-    setState(() => isLoading = false);
+    try {
+      final loaded = await AppDI.carRepo.getCars();
+      cars = loaded;
+      filteredCars = loaded;
+    } catch (e) {
+      debugPrint('Failed to load cars: $e');
+      cars = const [];
+      filteredCars = const [];
+    } finally {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+    }
   }
 
   void filterCars(String query) {

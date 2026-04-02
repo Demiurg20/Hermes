@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../cars/car.dart';
+import 'car_details_page.dart';
 
 class SelectCarPage extends StatelessWidget {
   final List<Car> cars;
@@ -33,6 +34,13 @@ class SelectCarPage extends StatelessWidget {
                 ListTile(
                   title: Text(car.name),
                   subtitle: Text("\$${car.price}/day"),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CarDetailsScreen(carId: car.id),
+                      ),
+                    );
+                  },
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

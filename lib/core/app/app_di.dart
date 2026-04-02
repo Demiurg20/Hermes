@@ -9,7 +9,10 @@ class AppDI {
   // переключатель (сейчас мок, завтра api)
   static const bool useMock = false;
 
-  static CarRepository get carRepo => useMock ? MockCarRepository() : ApiCarRepository(api);
+  // static CarRepository get carRepo => useMock ? MockCarRepository() : ApiCarRepository(api);
+
+  static CarRepository get carRepo =>
+      useMock ? MockCarRepository() : ApiCarRepository(api);
 
   static final bookingRepo = BookingRepository(api);
 }
