@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hermes/core/theme/app_theme.dart';
+import 'package:hermes/features/auth/presentation/login_page.dart';
+import 'package:hermes/features/auth/presentation/register_page.dart';
 import 'package:hermes/features/home/splash_page.dart';
 // import 'package:hermes/features/home/home_page.dart';
 // import 'package:hermes/features/profile/edit_profile_page.dart';
@@ -23,7 +25,7 @@ class HermesApp extends StatelessWidget {
       // 🔥 Для теста SelectCarPage
       //home: SelectCarPage(cars: cars),
 
-      home: const SplashPage(),
+      home: const LoginPage(),
     );
   }
 }

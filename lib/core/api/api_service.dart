@@ -110,11 +110,10 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getUserInfo() async {
-    final response = await dio.get("/user/info/");
+    final response = await dio.get("/user/info/profile");
 
     print("PROFILE RESPONSE: ${response.data}");
 
-    /// если backend возвращает {data: {...}}
     if (response.data is Map && response.data["data"] != null) {
       return Map<String, dynamic>.from(response.data["data"]);
     }

@@ -35,6 +35,7 @@ class PriceSummaryScreen extends StatefulWidget {
   final int days;
   final double totalFromBackend;
 
+
   @override
   State<PriceSummaryScreen> createState() => _PriceSummaryScreenState();
 }
@@ -43,6 +44,34 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
   static const Color bg = Color(0xFF0B0C0E);
   static const Color gold = Color(0xFFD6A34A);
   static const Color green = Color(0xFF3DDC84);
+
+
+  Future<void> loadBalance() async {
+    try {
+      final user = await AppDI.userRepo.getUserInfo();
+
+      setState(() {
+        balance = user.balance;
+        isBalanceLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Balance load error: $e");
+
+      setState(() {
+        balance = 0;
+        isBalanceLoading = false;
+      });
+    }
+  }
+
+  double? balance;
+  bool isBalanceLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadBalance(); // 👈 твой метод
+  }
 
   bool agreed = false;
   bool _creatingBooking = false;
@@ -67,6 +96,8 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
     final total = rent + serviceFee + insuranceFee;
 
     final confirmText = 'Confirm \$${total.toStringAsFixed(0)}';
+
+
 
     return Scaffold(
       backgroundColor: bg,
@@ -295,9 +326,14 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                       ),
                     ),
                     const Spacer(),
-                    const Text(
-                      '\$150.00',
-                      style: TextStyle(
+                    isBalanceLoading
+                        ? const Text(
+                      'Loading...',
+                      style: TextStyle(color: Colors.white),
+                    )
+                        : Text(
+                      '\$${balance?.toStringAsFixed(2) ?? '0.00'}',
+                      style: const TextStyle(
                         color: green,
                         fontWeight: FontWeight.w900,
                         fontSize: 16,

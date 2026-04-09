@@ -28,15 +28,12 @@ class _BalanceTopUpPageState extends State<BalanceTopUpPage> {
       _loading = true;
       _error = null;
     });
+
     try {
-      final data = await AppDI.api.getUserInfo();
-      final raw = data['balance'] ??
-          data['walletBalance'] ??
-          data['wallet'] ??
-          data['amount'];
-      final bal = raw is num ? raw.toDouble() : double.tryParse(raw?.toString() ?? '');
+      final user = await AppDI.userRepo.getUserInfo(); // 🔥 ВАЖНО
+
       setState(() {
-        _balance = bal ?? 0;
+        _balance = user.balance;
         _loading = false;
       });
     } catch (e) {

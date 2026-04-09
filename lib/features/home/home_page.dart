@@ -16,12 +16,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
   List<Car> cars = [];
   List<Car> filteredCars = [];
 
   bool isLoading = true;
   String? loadError;
+
+  /// 👤 USER
+  String? userName;
+  double balance = 0;
+  bool isUserLoading = true;
 
   final TextEditingController searchController = TextEditingController();
 
@@ -29,8 +33,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     loadCars();
+    loadUser(); // 🔥 добавили
   }
 
+  /// 🚗 LOAD CARS
   Future<void> loadCars() async {
     setState(() {
       isLoading = true;
@@ -55,6 +61,27 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// 👤 LOAD USER (NAME + BALANCE)
+  Future<void> loadUser() async {
+    try {
+      final user = await AppDI.userRepo.getUserInfo();
+
+      setState(() {
+        userName = user.name;        // ⚠️ проверь поле
+        balance = user.balance;     // ⚠️ проверь поле
+        isUserLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Failed to load user: $e");
+      setState(() {
+        userName = "User";
+        balance = 0;
+        isUserLoading = false;
+      });
+    }
+  }
+
+  /// 🔍 FILTER
   void filterCars(String query) {
     final results = cars.where((car) {
       return car.name.toLowerCase().contains(query.toLowerCase()) ||
@@ -66,6 +93,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /// 🚪 LOGOUT
   Future<void> logout() async {
     await TokenStorage.clearToken();
     if (!mounted) return;
@@ -92,7 +120,6 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: ListView(
             children: [
-
               const SizedBox(height: 10),
 
               /// 👤 HEADER
@@ -100,41 +127,78 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
-                    children: const [
-                      CircleAvatar(radius: 22),
-                      SizedBox(width: 12),
+                    children: [
+                      const CircleAvatar(radius: 22),
+                      const SizedBox(width: 12),
                       Column(
                         crossAxisAlignment:
                         CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             "WELCOME BACK",
                             style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.greyText),
                           ),
-                          Text(
-                            "Anarbekov A.",
+                          isUserLoading
+                              ? const Text(
+                            "Loading...",
                             style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                              : Text(
+                            userName ?? "User",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       )
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.edit,
-                        color: AppColors.primary),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                          const ProfilePage(),
-                        ),
-                      );
-                    },
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: AppColors.primary),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfilePage(),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.logout, color: Colors.red),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text("Logout"),
+                              content: const Text("Are you sure you want to logout?"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text("Logout"),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            await logout();
+                          }
+                        },
+                      ),
+                    ],
                   )
                 ],
               ),
@@ -165,13 +229,14 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 20),
 
-              /// 💳 BALANCE (tap to top up)
+              /// 💳 BALANCE
               GestureDetector(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const BalanceTopUpPage(),
+                      builder: (_) =>
+                      const BalanceTopUpPage(),
                     ),
                   );
                 },
@@ -182,18 +247,24 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      const Text(
                         "Your Balance",
                         style: TextStyle(
                           color: AppColors.greyText,
                         ),
                       ),
-                      SizedBox(height: 10),
-                      Text(
-                        "\$150.00",
-                        style: TextStyle(
+                      const SizedBox(height: 10),
+                      isUserLoading
+                          ? const Text(
+                        "Loading...",
+                        style: TextStyle(fontSize: 24),
+                      )
+                          : Text(
+                        "\$${balance.toStringAsFixed(2)}",
+                        style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
                         ),
@@ -205,105 +276,72 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 25),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Popular Cars",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              /// 🚗 POPULAR CARS
+              Row(
+                mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Popular Cars",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SelectCarPage(cars: cars),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    "View all",
-                    style: TextStyle(color: AppColors.primary),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              SelectCarPage(cars: cars),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "View all",
+                      style: TextStyle(
+                          color: AppColors.primary),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
 
               const SizedBox(height: 10),
+
               if (filteredCars.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 24, bottom: 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                const Text("No cars found")
+              else
+                ...filteredCars.map((car) => Container(
+                  margin:
+                  const EdgeInsets.only(bottom: 15),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.input,
+                    borderRadius:
+                    BorderRadius.circular(16),
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        loadError == null
-                            ? "No cars loaded"
-                            : "Failed to load cars:\n$loadError",
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white),
+                      Image.network(
+                        car.image,
+                        width: 90,
+                        height: 60,
+                        fit: BoxFit.cover,
                       ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => loadCars(),
-                        child: const Text("Retry"),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(car.name),
+                      ),
+                      Text(
+                        "\$${car.price}/h",
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
-                )
-              else
-                ...filteredCars.map((car) => Container(
-                      margin: const EdgeInsets.only(bottom: 15),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.input,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              car.image,
-                              width: 90,
-                              height: 60,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  car.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "${car.rating} • ${car.type}",
-                                  style: const TextStyle(
-                                    color: AppColors.greyText,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            "\$${car.price}/hour",
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
+                )),
             ],
           ),
         ),
