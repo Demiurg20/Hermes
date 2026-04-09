@@ -7,7 +7,7 @@ import 'home_page.dart';
 /// 🔥 ВКЛ / ВЫКЛ MOCK режима
 /// true  → всегда открывает Login (для демонстрации)
 /// false → работает реальная проверка токена
-const bool useMockLogin = true;
+const bool useMockLogin = false;
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

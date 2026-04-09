@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:hermes/core/app/app_di.dart';
+import 'package:hermes/core/booking/rental_period.dart';
+import 'package:hermes/core/models/location.dart';
+import 'package:hermes/core/utils/map_launcher.dart';
+
 import '../cars/car.dart';
 import 'price_summary_page.dart';
 
@@ -29,6 +34,12 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
 
   late final List<_DateItem> dates;
 
+  List<Location> _locations = const [];
+  bool _loadingLocations = true;
+  String? _locationsError;
+  Location? _pickupLocation;
+  Location? _dropoffLocation;
+
   static const List<String> pageTimes = [
     '08:00',
     '09:00',
@@ -50,6 +61,32 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
 
     durationDays = widget.days < 1 ? 1 : widget.days;
     if (durationDays < 1) durationDays = 1;
+
+    _loadLocations();
+  }
+
+  Future<void> _loadLocations() async {
+    try {
+      final list = await AppDI.locationRepo.getLocations();
+      if (!mounted) return;
+      setState(() {
+        _locations = list;
+        _loadingLocations = false;
+        _locationsError = null;
+        if (_pickupLocation == null && list.isNotEmpty) {
+          _pickupLocation = list.first;
+        }
+        if (_dropoffLocation == null && list.isNotEmpty) {
+          _dropoffLocation = list.first;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingLocations = false;
+        _locationsError = e.toString();
+      });
+    }
   }
 
   @override
@@ -87,6 +124,164 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const _SectionTitle(
+                      icon: Icons.location_on_outlined,
+                      title: 'Pickup & drop-off',
+                    ),
+                    const SizedBox(height: 12),
+                    if (_loadingLocations)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(color: gold),
+                        ),
+                      )
+                    else if (_locationsError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'Could not load locations: $_locationsError',
+                          style: TextStyle(
+                            color: Colors.redAccent.withOpacity(0.9),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    else if (_locations.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'No pickup locations available.',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.55),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    else ...[
+                      Text(
+                        'Pickup location',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.55),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<Location>(
+                        value: _pickupLocation,
+                        dropdownColor: card,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: card,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.12),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.12),
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                        items: _locations
+                            .map(
+                              (loc) => DropdownMenuItem<Location>(
+                                value: loc,
+                                child: Text(
+                                  loc.titleLine,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (loc) {
+                          setState(() => _pickupLocation = loc);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          icon: const Icon(Icons.map_outlined, color: gold),
+                          onPressed: _pickupLocation == null
+                              ? null
+                              : () => openLocationInMaps(_pickupLocation!),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Drop-off location',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.55),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<Location>(
+                        value: _dropoffLocation,
+                        dropdownColor: card,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: card,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.12),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.12),
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                        items: _locations
+                            .map(
+                              (loc) => DropdownMenuItem<Location>(
+                                value: loc,
+                                child: Text(
+                                  loc.titleLine,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (loc) {
+                          setState(() => _dropoffLocation = loc);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          icon: const Icon(Icons.map_outlined, color: gold),
+                          onPressed: _dropoffLocation == null
+                              ? null
+                              : () => openLocationInMaps(_dropoffLocation!),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 22),
                     const _SectionTitle(
                       icon: Icons.calendar_month_outlined,
                       title: 'Pick a Date',
@@ -200,6 +395,23 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
               child: _PrimaryButton(
                 text: 'Calculate Price',
                 onTap: () {
+                  if (_pickupLocation == null || _dropoffLocation == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Select pickup and drop-off locations'),
+                      ),
+                    );
+                    return;
+                  }
+                  if (durationDays <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Rental duration must be at least 1 day'),
+                      ),
+                    );
+                    return;
+                  }
+
                   final timeStr = pageTimes[selectedTimeIndex];
                   final parts = timeStr.split(':');
                   final hh = int.parse(parts[0]);
@@ -214,19 +426,30 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
                     mm,
                   );
 
-                  final dropoffDateTime = pickupDateTime.add(Duration(days: durationDays));
+                  DateTime dropoffDateTime;
+                  try {
+                    dropoffDateTime =
+                        computeRentalEndDate(pickupDateTime, durationDays);
+                  } on ArgumentError catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.message ?? e.toString())),
+                    );
+                    return;
+                  }
 
                   final total = widget.totalFromBackend == 0
-                      ? (widget.car.pricePerDay * durationDays + 5).toDouble()
+                      ? (widget.car.pricePerDay * durationDays).toDouble()
                       : widget.totalFromBackend;
 
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => PriceSummaryScreen(
                         car: widget.car,
-                        pickupLocation: 'Moscow City Center',
+                        pickUpLocationId: _pickupLocation!.id,
+                        dropOffLocationId: _dropoffLocation!.id,
+                        pickupLocationLabel: _pickupLocation!.titleLine,
+                        dropoffLocationLabel: _dropoffLocation!.titleLine,
                         pickupDateTime: pickupDateTime,
-                        dropoffLocation: 'Moscow City Center',
                         dropoffDateTime: dropoffDateTime,
                         days: durationDays,
                         totalFromBackend: total,
@@ -237,6 +460,84 @@ class _SelectDateTimeScreenState extends State<SelectDateTimeScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationTile extends StatelessWidget {
+  const _LocationTile({
+    required this.location,
+    required this.selected,
+    required this.onSelect,
+    required this.onOpenMap,
+  });
+
+  final Location location;
+  final bool selected;
+  final VoidCallback onSelect;
+  final VoidCallback onOpenMap;
+
+  static const Color gold = Color(0xFFD6A34A);
+  static const Color card = Color(0xFF111317);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: card,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onSelect,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                    color: selected ? gold : Colors.white38,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        location.city,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        location.address,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.55),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.map_outlined, color: gold),
+                  onPressed: onOpenMap,
+                  tooltip: 'Open in maps',
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

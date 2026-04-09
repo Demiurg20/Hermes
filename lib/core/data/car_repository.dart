@@ -54,6 +54,9 @@ class ApiCarRepository implements CarRepository {
 
   @override
   Future<Car> getCarById(String id) async {
+    if (id.trim().isEmpty) {
+      throw ArgumentError.value(id, 'id', 'carId is empty');
+    }
     final m = await _api.getCarByIdBackend(id);
     return Car.fromJson(m);
   }
@@ -67,6 +70,7 @@ class MockCarRepository implements CarRepository {
     return const [
       Car(
         id: 'car_1',
+        bookingCarId: 1,
         brand: 'TESLA',
         model: 'Model 3',
         rating: 4.9,
@@ -83,6 +87,7 @@ class MockCarRepository implements CarRepository {
       ),
       Car(
         id: 'car_2',
+        bookingCarId: 2,
         brand: 'BMW',
         model: '5 Series',
         rating: 4.8,
@@ -99,6 +104,7 @@ class MockCarRepository implements CarRepository {
       ),
       Car(
         id: 'car_3',
+        bookingCarId: 3,
         brand: 'Ford',
         model: 'Explorer',
         rating: 5.0,

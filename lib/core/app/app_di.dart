@@ -1,6 +1,7 @@
 import '../api/api_service.dart';
 import 'package:hermes/core/data/car_repository.dart';
 import 'package:hermes/core/data/booking_repository.dart';
+import 'package:hermes/core/data/location_repository.dart';
 
 class AppDI {
   // завтра тут будет ApiService(baseUrl, tokenStorage)
@@ -15,4 +16,5 @@ class AppDI {
       useMock ? MockCarRepository() : ApiCarRepository(api);
 
   static final bookingRepo = BookingRepository(api);
+  static final locationRepo = LocationRepository(api);
 }

@@ -5,6 +5,7 @@ import '/core/app/app_di.dart';
 import '/features/auth/presentation/login_page.dart';
 import '/features/profile/profile_page.dart';
 import '/features/cars/select_car_page.dart';
+import 'balance_topup_page.dart';
 import '../cars/car.dart';
 
 class HomePage extends StatefulWidget {
@@ -20,16 +21,7 @@ class _HomePageState extends State<HomePage> {
   List<Car> filteredCars = [];
 
   bool isLoading = true;
-
-  String selectedLocation = "Moscow City Center";
-
-  final List<String> locations = [
-    "Moscow City Center",
-    "Dubai Marina",
-    "Bishkek Downtown",
-    "Karakol Center",
-    "Almaty Business District",
-  ];
+  String? loadError;
 
   final TextEditingController searchController = TextEditingController();
 
@@ -42,19 +34,24 @@ class _HomePageState extends State<HomePage> {
   Future<void> loadCars() async {
     setState(() {
       isLoading = true;
+      loadError = null;
     });
 
     try {
-      final loaded = await AppDI.carRepo.getCars();
+      final loaded = await AppDI.carRepo.getCars().timeout(
+        const Duration(seconds: 10),
+      );
       cars = loaded;
       filteredCars = loaded;
     } catch (e) {
       debugPrint('Failed to load cars: $e');
       cars = const [];
       filteredCars = const [];
+      loadError = e.toString();
     } finally {
-      if (!mounted) return;
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -67,35 +64,6 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       filteredCars = results;
     });
-  }
-
-  void showLocationPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.input,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) {
-        return ListView(
-          padding: const EdgeInsets.all(20),
-          children: locations.map((location) {
-            return ListTile(
-              title: Text(
-                location,
-                style: const TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                setState(() {
-                  selectedLocation = location;
-                });
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        );
-      },
-    );
   }
 
   Future<void> logout() async {
@@ -197,69 +165,39 @@ class _HomePageState extends State<HomePage> {
 
               const SizedBox(height: 20),
 
-              /// 💳 BALANCE
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.input,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      "Your Balance",
-                      style: TextStyle(
-                          color: AppColors.greyText),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      "\$150.00",
-                      style: TextStyle(
-                          fontSize: 32,
-                          fontWeight:
-                          FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              /// 📍 LOCATION (Clickable)
+              /// 💳 BALANCE (tap to top up)
               GestureDetector(
-                onTap: showLocationPicker,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BalanceTopUpPage(),
+                    ),
+                  );
+                },
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: AppColors.input,
-                    borderRadius:
-                    BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.location_on,
-                          color: AppColors.primary),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Pickup location",
-                            style: TextStyle(
-                                color:
-                                AppColors.greyText),
-                          ),
-                          Text(
-                            selectedLocation,
-                            style: const TextStyle(
-                                fontWeight:
-                                FontWeight.bold),
-                          ),
-                        ],
-                      )
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        "Your Balance",
+                        style: TextStyle(
+                          color: AppColors.greyText,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        "\$150.00",
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -295,67 +233,77 @@ class _HomePageState extends State<HomePage> {
             ),
 
               const SizedBox(height: 10),
-
-              ...filteredCars.map((car) => Container(
-                margin:
-                const EdgeInsets.only(bottom: 15),
-                padding:
-                const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.input,
-                  borderRadius:
-                  BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius:
-                      BorderRadius.circular(12),
-                      child: Image.network(
-                        car.image,
-                        width: 90,
-                        height: 60,
-                        fit: BoxFit.cover,
+              if (filteredCars.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24, bottom: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        loadError == null
+                            ? "No cars loaded"
+                            : "Failed to load cars:\n$loadError",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () => loadCars(),
+                        child: const Text("Retry"),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...filteredCars.map((car) => Container(
+                      margin: const EdgeInsets.only(bottom: 15),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.input,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
                         children: [
-                          Text(
-                            car.name,
-                            style:
-                            const TextStyle(
-                                fontWeight:
-                                FontWeight
-                                    .bold),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              car.image,
+                              width: 90,
+                              height: 60,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                          const SizedBox(
-                              height: 4),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  car.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${car.rating} • ${car.type}",
+                                  style: const TextStyle(
+                                    color: AppColors.greyText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           Text(
-                            "${car.rating} • ${car.type}",
+                            "\$${car.price}/hour",
                             style: const TextStyle(
-                                color:
-                                AppColors
-                                    .greyText),
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    Text(
-                      "\$${car.price}/hour",
-                      style: const TextStyle(
-                        color:
-                        AppColors.primary,
-                        fontWeight:
-                        FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+                    )),
             ],
           ),
         ),

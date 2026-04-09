@@ -1,25 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../cars/car.dart';
 import '../cars/booking_confirmed_page.dart';
 import '../auth/presentation/agreement_page.dart';
 import 'payment_page.dart';
+import 'package:hermes/core/app/app_di.dart';
+import 'package:hermes/core/api/token_storage.dart';
+import 'package:hermes/core/models/booking_request.dart';
+import 'package:hermes/features/auth/presentation/login_page.dart';
+
 class PriceSummaryScreen extends StatefulWidget {
   const PriceSummaryScreen({
     super.key,
     required this.car,
-    required this.pickupLocation,
+    required this.pickUpLocationId,
+    required this.dropOffLocationId,
+    required this.pickupLocationLabel,
+    required this.dropoffLocationLabel,
     required this.pickupDateTime,
-    required this.dropoffLocation,
     required this.dropoffDateTime,
     required this.days,
     required this.totalFromBackend,
   });
 
   final Car car;
-  final String pickupLocation;
+  final int pickUpLocationId;
+  final int dropOffLocationId;
+  final String pickupLocationLabel;
+  final String dropoffLocationLabel;
   final DateTime pickupDateTime;
 
-  final String dropoffLocation;
   final DateTime dropoffDateTime;
 
   final int days;
@@ -35,6 +45,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
   static const Color green = Color(0xFF3DDC84);
 
   bool agreed = false;
+  bool _creatingBooking = false;
 
   @override
   Widget build(BuildContext context) {
@@ -44,16 +55,15 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
     final pickup = widget.pickupDateTime;
     final dropoff = widget.dropoffDateTime;
 
-    // duration (rounded up to hours)
-    final totalHours = ((dropoff.difference(pickup).inMinutes) / 60)
-        .ceil()
-        .clamp(0, 24 * 365);
-
     final dateText = _formatDateLong(pickup); // Sunday, March 15
     final timeText = _formatTime(pickup); // 10:00
-    final durationText = totalHours == 1 ? '1 hour' : '$totalHours hours';
+    final durationText = widget.days == 1
+        ? '1 day'
+        : '${widget.days} days';
 
-    final rent = (widget.car.pricePerHour * totalHours).toDouble();
+    final rent = widget.totalFromBackend > 0
+        ? widget.totalFromBackend
+        : (widget.car.pricePerDay * widget.days).toDouble();
     final total = rent + serviceFee + insuranceFee;
 
     final confirmText = 'Confirm \$${total.toStringAsFixed(0)}';
@@ -174,11 +184,20 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    _KeyValueRow(left: 'Pickup', right: widget.pickupLocationLabel),
+                    const SizedBox(height: 10),
+                    _KeyValueRow(left: 'Drop-off', right: widget.dropoffLocationLabel),
+                    const SizedBox(height: 10),
                     _KeyValueRow(left: 'Date', right: dateText),
                     const SizedBox(height: 10),
                     _KeyValueRow(left: 'Start time', right: timeText),
                     const SizedBox(height: 10),
                     _KeyValueRow(left: 'Duration', right: durationText),
+                    const SizedBox(height: 10),
+                    _KeyValueRow(
+                      left: 'End',
+                      right: _formatDateLong(dropoff) + ', ' + _formatTime(dropoff),
+                    ),
                   ],
                 ),
               ),
@@ -203,7 +222,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
 
                     _KeyValueRow(
                       left:
-                      '\$${widget.car.pricePerHour} × $totalHours hr${totalHours == 1 ? '' : 's'}',
+                          '\$${widget.car.pricePerDay} × ${widget.days} day${widget.days == 1 ? '' : 's'}',
                       right: '\$${rent.toStringAsFixed(0)}',
                       dim: true,
                     ),
@@ -365,27 +384,85 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                         child: _PrimaryButton(
                           text: confirmText,
                           onTap: () async {
-                            final paid = await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(
-                                builder: (_) => PaymentScreen(totalAmount: total),
-                              ),
-                            );
-
-                            if (paid != true) return;
-
-                            const bookingId = 'HF-2026-0847';
-                            if (!mounted) return;
-
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => BookingConfirmedScreen(
-                                  car: widget.car,
-                                  bookingId: bookingId,
-                                  pickupLocation: widget.pickupLocation,
-                                  pickupDateTime: widget.pickupDateTime,
+                            if (_creatingBooking) return;
+                            setState(() => _creatingBooking = true);
+                            try {
+                              final carId = widget.car.bookingCarId;
+                              if (carId == null) {
+                                throw StateError(
+                                  'Missing numeric carId for booking. Load cars from the API '
+                                  '(response must include carId or a numeric id field).',
+                                );
+                              }
+                              if (widget.pickUpLocationId <= 0 ||
+                                  widget.dropOffLocationId <= 0) {
+                                throw StateError(
+                                  'Invalid locations: pick pickup and drop-off again.',
+                                );
+                              }
+                              final bookingId =
+                                  await AppDI.bookingRepo.createBooking(
+                                BookingRequest(
+                                  carId: carId,
+                                  pickUpLocationId: widget.pickUpLocationId,
+                                  dropOffLocationId: widget.dropOffLocationId,
+                                  startDate: widget.pickupDateTime,
+                                  endDate: widget.dropoffDateTime,
                                 ),
-                              ),
-                            );
+                              );
+
+                              if (!mounted) return;
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => BookingConfirmedScreen(
+                                    car: widget.car,
+                                    bookingId: bookingId,
+                                    pickupLocation: widget.pickupLocationLabel,
+                                    pickupDateTime: widget.pickupDateTime,
+                                  ),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              if (e is DioException) {
+                                final code = e.response?.statusCode;
+                                if (code == 401 || code == 403) {
+                                  await TokenStorage.clearToken();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Session expired. Please sign in again.'),
+                                    ),
+                                  );
+                                  Navigator.of(context).pushAndRemoveUntil(
+                                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                                    (route) => false,
+                                  );
+                                  setState(() => _creatingBooking = false);
+                                  return;
+                                }
+
+                                final data = e.response?.data;
+                                String message = 'Booking failed with $code';
+                                if (data is Map) {
+                                  message = data['message']?.toString() ??
+                                      data['error']?.toString() ??
+                                      data.toString();
+                                } else if (data != null) {
+                                  message = data.toString();
+                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(message)),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Booking failed: $e'),
+                                  ),
+                                );
+                              }
+                              setState(() => _creatingBooking = false);
+                            }
                           },
                         ),
                       ),

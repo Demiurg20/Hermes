@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:hermes/core/app/app_di.dart';
 
 import '../cars/car.dart';
 
@@ -30,6 +31,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
   static const Color green = Color(0xFF3DDC84);
 
   bool _processing = true;
+  String? _serverStatus;
 
   late final AnimationController _pulseController;
 
@@ -42,15 +44,41 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
       duration: const Duration(milliseconds: 1100),
     );
 
-    _finishProcessing();
+    _loadServerStatus();
   }
 
-  Future<void> _finishProcessing() async {
-    // Simulate processing for 3 seconds
-    await Future.delayed(const Duration(seconds: 3));
-    if (!mounted) return;
-    setState(() => _processing = false);
-    _pulseController.forward(from: 0);
+  Future<void> _loadServerStatus() async {
+    try {
+      final bookings = await AppDI.bookingRepo.getMyBookings().timeout(
+        const Duration(seconds: 10),
+      );
+
+      final bookingId = widget.bookingId;
+      Map<String, dynamic>? booking;
+
+      for (final item in bookings) {
+        if (item is! Map) continue;
+        final id = item["id"] ?? item["bookingId"] ?? item["_id"] ?? item["booking_id"];
+        if (id?.toString() == bookingId) {
+          booking = Map<String, dynamic>.from(item);
+          break;
+        }
+      }
+
+      if (booking != null) {
+        _serverStatus = (booking["status"] ??
+                booking["state"] ??
+                booking["bookingStatus"] ??
+                booking["clientStatus"])
+            ?.toString();
+      }
+    } catch (_) {
+      // Fallback: оставляем _serverStatus null и показываем поведение по времени.
+    } finally {
+      if (!mounted) return;
+      setState(() => _processing = false);
+      _pulseController.forward(from: 0);
+    }
   }
 
   @override
@@ -60,6 +88,9 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
   }
 
   String _statusText() {
+    if (_serverStatus != null && _serverStatus!.trim().isNotEmpty) {
+      return _serverStatus!;
+    }
     final now = DateTime.now();
     final diff = widget.pickupDateTime.difference(now);
 
@@ -78,6 +109,15 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
   }
 
   bool _isReady() {
+    if (_serverStatus != null && _serverStatus!.trim().isNotEmpty) {
+      final s = _serverStatus!.toLowerCase();
+      if (s.contains('ready') ||
+          s.contains('confirmed') ||
+          s.contains('confirm') ||
+          s.contains('active')) {
+        return true;
+      }
+    }
     final diff = widget.pickupDateTime.difference(DateTime.now());
     return diff.inSeconds <= 2 * 3600;
   }

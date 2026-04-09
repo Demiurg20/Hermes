@@ -10,14 +10,24 @@ class ApiService {
         baseUrl:
         "https://ungrudging-carson-nonvituperatively.ngrok-free.dev/api",
         headers: {"Content-Type": "application/json"},
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
+        sendTimeout: const Duration(seconds: 10),
       ),
     );
 
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-
-          final token = await TokenStorage.getToken();
+          String? token;
+          try {
+            token = await TokenStorage.getToken().timeout(
+              const Duration(seconds: 2),
+              onTimeout: () => null,
+            );
+          } catch (_) {
+            token = null;
+          }
 
           print("------ API REQUEST ------");
           print("URL: ${options.uri}");
@@ -55,6 +65,13 @@ class ApiService {
   }
 
   /// 🔐 AUTH
+
+  Future<void> topUpBalance(double amount) async {
+    await dio.post(
+      "/user/balance/topup",
+      data: {"amount": amount},
+    );
+  }
 
   Future<String> login(String email, String password) async {
     final response = await dio.post(
@@ -143,5 +160,77 @@ class ApiService {
   /// старый метод (можешь удалить потом)
   Future<List<dynamic>> getCars() async {
     return await getCarsBackend();
+  }
+
+  /// 📍 LOCATIONS (pickup / drop-off points)
+  Future<dynamic> getLocationsBackend() async {
+    final response = await dio.get('/locations');
+    return response.data;
+  }
+
+  /// 📦 BOOKINGS
+  ///
+  /// Важно: backend иногда возвращает данные в формате `{ data: ... }`,
+  /// поэтому методы выше в репозитории нормализуют ответ.
+
+  Future<dynamic> createBookingBackend(Map<String, dynamic> body) async {
+    print('------ CREATE BOOKING BODY ------');
+    print(body);
+    final response = await dio.post(
+      "/bookings",
+      data: body,
+    );
+    print('------ CREATE BOOKING RESPONSE ------');
+    print(response.data);
+    return response.data;
+  }
+
+  Future<dynamic> clientReturnBackend(String bookingId) async {
+    final response = await dio.post(
+      "/bookings/$bookingId/client-return",
+    );
+    return response.data;
+  }
+
+  Future<dynamic> clientConfirmBackend(String bookingId) async {
+    final response = await dio.post(
+      "/bookings/$bookingId/client-confirm",
+    );
+    return response.data;
+  }
+
+  Future<dynamic> ownerReturnBackend(String bookingId) async {
+    final response = await dio.patch(
+      "/bookings/$bookingId/return",
+    );
+    return response.data;
+  }
+
+  Future<dynamic> ownerConfirmBackend(String bookingId) async {
+    final response = await dio.patch(
+      "/bookings/$bookingId/confirm",
+    );
+    return response.data;
+  }
+
+  Future<dynamic> ownerCancelBackend(String bookingId) async {
+    final response = await dio.patch(
+      "/bookings/$bookingId/cancel",
+    );
+    return response.data;
+  }
+
+  Future<dynamic> getOwnerRequestsBackend() async {
+    final response = await dio.get(
+      "/bookings/owner-requests",
+    );
+    return response.data;
+  }
+
+  Future<dynamic> getMyBookingsBackend() async {
+    final response = await dio.get(
+      "/bookings/my-bookings",
+    );
+    return response.data;
   }
 }
