@@ -11,7 +11,6 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-
   final api = ApiService();
 
   Map<String, dynamic>? user;
@@ -24,21 +23,30 @@ class _ProfilePageState extends State<ProfilePage> {
     loadProfile();
   }
 
+  /// ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ (Refresh)
+  Future<void> _onRefresh() async {
+    await loadProfile();
+  }
+
   Future<void> loadProfile() async {
     try {
       final data = await api.getUserInfo();
 
       print("PROFILE DATA: $data");
 
-      setState(() {
-        user = data;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          user = data;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       print(e);
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -68,69 +76,63 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: AppColors.background,
-
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: const Text("Profile"),
       ),
-
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-
-            CircleAvatar(
-              radius: 50,
-              backgroundColor: AppColors.input,
-              backgroundImage: user?["image"] != null
-                  ? NetworkImage(user!["image"])
-                  : null,
-              child: user?["image"] == null
-                  ? const Icon(Icons.person, color: AppColors.greyText)
-                  : null,
-            ),
-
-            const SizedBox(height: 20),
-
-            buildInfo("First Name", user?["firstName"]),
-            buildInfo("Last Name", user?["lastName"]),
-            buildInfo("Phone", user?["phone"]),
-            buildInfo("Personal Number", user?["personalNumber"]),
-            buildInfo("License Number", user?["licenseNumber"]),
-            buildInfo("Gender", user?["gender"]),
-            buildInfo("License Category", user?["categoryOfLicense"]),
-            buildInfo("Date of Birth", user?["dateOfBirth"]),
-            buildInfo("License Issued", user?["dateOfGetDriverLicense"]),
-            buildInfo("License Expiry", user?["dateOfEndDriverLicense"]),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                minimumSize: const Size(double.infinity, 50),
+          : RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _onRefresh, // Тот самый свайп вниз
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // Обязательно для свайпа
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: AppColors.input,
+                backgroundImage: user?["image"] != null
+                    ? NetworkImage(user!["image"])
+                    : null,
+                child: user?["image"] == null
+                    ? const Icon(Icons.person, color: AppColors.greyText)
+                    : null,
               ),
-              onPressed: () async {
+              const SizedBox(height: 20),
+              buildInfo("First Name", user?["firstName"]),
+              buildInfo("Last Name", user?["lastName"]),
+              buildInfo("Phone", user?["phone"]),
+              buildInfo("Personal Number", user?["personalNumber"]),
+              buildInfo("License Number", user?["licenseNumber"]),
+              buildInfo("Gender", user?["gender"]),
+              buildInfo("License Category", user?["categoryOfLicense"]),
+              buildInfo("Date of Birth", user?["dateOfBirth"]),
+              buildInfo("License Issued", user?["dateOfGetDriverLicense"]),
+              buildInfo("License Expiry", user?["dateOfEndDriverLicense"]),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const EditProfilePage(),
+                    ),
+                  );
 
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EditProfilePage(),
-                  ),
-                );
-
-                loadProfile();
-
-              },
-              child: const Text("Edit Profile"),
-            )
-
-          ],
+                  loadProfile();
+                },
+                child: const Text("Edit Profile"),
+              )
+            ],
+          ),
         ),
       ),
     );

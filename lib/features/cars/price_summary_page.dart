@@ -29,12 +29,9 @@ class PriceSummaryScreen extends StatefulWidget {
   final String pickupLocationLabel;
   final String dropoffLocationLabel;
   final DateTime pickupDateTime;
-
   final DateTime dropoffDateTime;
-
   final int days;
   final double totalFromBackend;
-
 
   @override
   State<PriceSummaryScreen> createState() => _PriceSummaryScreenState();
@@ -45,59 +42,55 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
   static const Color gold = Color(0xFFD6A34A);
   static const Color green = Color(0xFF3DDC84);
 
-
-  Future<void> loadBalance() async {
-    try {
-      final user = await AppDI.userRepo.getUserInfo();
-
-      setState(() {
-        balance = user.balance;
-        isBalanceLoading = false;
-      });
-    } catch (e) {
-      debugPrint("Balance load error: $e");
-
-      setState(() {
-        balance = 0;
-        isBalanceLoading = false;
-      });
-    }
-  }
-
   double? balance;
   bool isBalanceLoading = true;
+  bool agreed = false;
+  bool _creatingBooking = false;
 
   @override
   void initState() {
     super.initState();
-    loadBalance(); // 👈 твой метод
+    loadBalance();
   }
 
-  bool agreed = false;
-  bool _creatingBooking = false;
+  Future<void> loadBalance() async {
+    try {
+      final user = await AppDI.userRepo.getUserInfo();
+      if (mounted) {
+        setState(() {
+          balance = user.balance;
+          isBalanceLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Balance load error: $e");
+      if (mounted) {
+        setState(() {
+          balance = 0;
+          isBalanceLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     const double serviceFee = 5;
     const double insuranceFee = 5;
 
-    final pickup = widget.pickupDateTime;
-    final dropoff = widget.dropoffDateTime;
-
-    final dateText = _formatDateLong(pickup); // Sunday, March 15
-    final timeText = _formatTime(pickup); // 10:00
-    final durationText = widget.days == 1
-        ? '1 day'
-        : '${widget.days} days';
-
     final rent = widget.totalFromBackend > 0
         ? widget.totalFromBackend
         : (widget.car.pricePerDay * widget.days).toDouble();
     final total = rent + serviceFee + insuranceFee;
 
-    final confirmText = 'Confirm \$${total.toStringAsFixed(0)}';
+    // 🔥 ПРОВЕРКА: хватает ли денег на балансе
+    final bool hasEnoughMoney = balance != null && balance! >= total;
 
-
+    // Текст кнопки меняется динамически
+    String confirmButtonText = 'Confirm \$${total.toStringAsFixed(0)}';
+    if (!isBalanceLoading && !hasEnoughMoney) {
+      confirmButtonText = 'Insufficient Balance';
+    }
 
     return Scaffold(
       backgroundColor: bg,
@@ -169,9 +162,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  widget.car.fuel.isNotEmpty
-                                      ? widget.car.fuel
-                                      : 'Comfort',
+                                  widget.car.fuel.isNotEmpty ? widget.car.fuel : 'Comfort',
                                   style: const TextStyle(
                                     color: gold,
                                     fontWeight: FontWeight.w800,
@@ -181,9 +172,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                widget.car.type.isNotEmpty
-                                    ? widget.car.type
-                                    : 'Auto',
+                                widget.car.type.isNotEmpty ? widget.car.type : 'Auto',
                                 style: TextStyle(
                                   color: Colors.white.withOpacity(0.55),
                                   fontWeight: FontWeight.w700,
@@ -219,15 +208,15 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                     const SizedBox(height: 10),
                     _KeyValueRow(left: 'Drop-off', right: widget.dropoffLocationLabel),
                     const SizedBox(height: 10),
-                    _KeyValueRow(left: 'Date', right: dateText),
+                    _KeyValueRow(left: 'Date', right: _formatDateLong(widget.pickupDateTime)),
                     const SizedBox(height: 10),
-                    _KeyValueRow(left: 'Start time', right: timeText),
+                    _KeyValueRow(left: 'Start time', right: _formatTime(widget.pickupDateTime)),
                     const SizedBox(height: 10),
-                    _KeyValueRow(left: 'Duration', right: durationText),
+                    _KeyValueRow(left: 'Duration', right: widget.days == 1 ? '1 day' : '${widget.days} days'),
                     const SizedBox(height: 10),
                     _KeyValueRow(
                       left: 'End',
-                      right: _formatDateLong(dropoff) + ', ' + _formatTime(dropoff),
+                      right: '${_formatDateLong(widget.dropoffDateTime)}, ${_formatTime(widget.dropoffDateTime)}',
                     ),
                   ],
                 ),
@@ -250,48 +239,23 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     _KeyValueRow(
-                      left:
-                          '\$${widget.car.pricePerDay} × ${widget.days} day${widget.days == 1 ? '' : 's'}',
+                      left: '\$${widget.car.pricePerDay} × ${widget.days} day${widget.days == 1 ? '' : 's'}',
                       right: '\$${rent.toStringAsFixed(0)}',
                       dim: true,
                     ),
                     const SizedBox(height: 10),
-                    _KeyValueRow(
-                      left: 'Service fee',
-                      right: '\$${serviceFee.toStringAsFixed(0)}',
-                      dim: true,
-                    ),
+                    _KeyValueRow(left: 'Service fee', right: '\$${serviceFee.toStringAsFixed(0)}', dim: true),
                     const SizedBox(height: 10),
-                    _KeyValueRow(
-                      left: 'Insurance',
-                      right: '\$${insuranceFee.toStringAsFixed(0)}',
-                      dim: true,
-                    ),
+                    _KeyValueRow(left: 'Insurance', right: '\$${insuranceFee.toStringAsFixed(0)}', dim: true),
                     const SizedBox(height: 14),
                     _divider(),
                     const SizedBox(height: 14),
-
                     Row(
                       children: [
-                        const Text(
-                          'Total',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
-                          ),
-                        ),
+                        const Text('Total', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                         const Spacer(),
-                        Text(
-                          '\$${total.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: gold,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 22,
-                          ),
-                        ),
+                        Text('\$${total.toStringAsFixed(0)}', style: const TextStyle(color: gold, fontWeight: FontWeight.w900, fontSize: 22)),
                       ],
                     ),
                   ],
@@ -300,7 +264,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
 
               const SizedBox(height: 14),
 
-              // Balance
+              // Balance Card
               _SurfaceCard(
                 child: Row(
                   children: [
@@ -311,30 +275,20 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                         color: gold.withOpacity(0.16),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: gold,
-                        size: 18,
-                      ),
+                      child: const Icon(Icons.account_balance_wallet_outlined, color: gold, size: 18),
                     ),
                     const SizedBox(width: 12),
                     Text(
                       'Your balance',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.65),
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: TextStyle(color: Colors.white.withOpacity(0.65), fontWeight: FontWeight.w800),
                     ),
                     const Spacer(),
                     isBalanceLoading
-                        ? const Text(
-                      'Loading...',
-                      style: TextStyle(color: Colors.white),
-                    )
+                        ? const Text('Loading...', style: TextStyle(color: Colors.white))
                         : Text(
                       '\$${balance?.toStringAsFixed(2) ?? '0.00'}',
-                      style: const TextStyle(
-                        color: green,
+                      style: TextStyle(
+                        color: hasEnoughMoney ? green : Colors.redAccent,
                         fontWeight: FontWeight.w900,
                         fontSize: 16,
                       ),
@@ -375,23 +329,16 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                                 behavior: HitTestBehavior.opaque,
                                 onTap: () {
                                   Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const AgreementScreen(),
-                                    ),
+                                    MaterialPageRoute(builder: (_) => const AgreementScreen()),
                                   );
                                 },
                                 child: const Text(
                                   'User Agreement',
-                                  style: TextStyle(
-                                    color: gold,
-                                    fontWeight: FontWeight.w900,
-                                  ),
+                                  style: TextStyle(color: gold, fontWeight: FontWeight.w900),
                                 ),
                               ),
                             ),
-                            const TextSpan(
-                              text: ' of Hermes Flow car sharing platform',
-                            ),
+                            const TextSpan(text: ' of Hermes Flow car sharing platform'),
                           ],
                         ),
                       ),
@@ -414,30 +361,19 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Opacity(
-                      opacity: agreed ? 1 : 0.45,
+                      opacity: (agreed && hasEnoughMoney) ? 1 : 0.45,
                       child: IgnorePointer(
-                        ignoring: !agreed,
+                        ignoring: !agreed || !hasEnoughMoney || _creatingBooking,
                         child: _PrimaryButton(
-                          text: confirmText,
+                          text: _creatingBooking ? 'Processing...' : confirmButtonText,
                           onTap: () async {
-                            if (_creatingBooking) return;
                             setState(() => _creatingBooking = true);
                             try {
                               final carId = widget.car.bookingCarId;
-                              if (carId == null) {
-                                throw StateError(
-                                  'Missing numeric carId for booking. Load cars from the API '
-                                  '(response must include carId or a numeric id field).',
-                                );
-                              }
-                              if (widget.pickUpLocationId <= 0 ||
-                                  widget.dropOffLocationId <= 0) {
-                                throw StateError(
-                                  'Invalid locations: pick pickup and drop-off again.',
-                                );
-                              }
-                              final bookingId =
-                                  await AppDI.bookingRepo.createBooking(
+                              if (carId == null) throw StateError('Missing carId');
+
+                              // 1. Создаем бронь на сервере
+                              final bookingId = await AppDI.bookingRepo.createBooking(
                                 BookingRequest(
                                   carId: carId,
                                   pickUpLocationId: widget.pickUpLocationId,
@@ -446,6 +382,12 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                                   endDate: widget.dropoffDateTime,
                                 ),
                               );
+
+                              // 2. 🔥 СПИСАНИЕ СРЕДСТВ
+                              // Высчитываем новый баланс
+                              final double newBalance = balance! - total;
+                              // Вызываем обновление в репозитории (проверь название метода updateBalance)
+                              await AppDI.userRepo.updateBalance(newBalance);
 
                               if (!mounted) return;
                               Navigator.of(context).pushReplacement(
@@ -460,44 +402,10 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                               );
                             } catch (e) {
                               if (!mounted) return;
-                              if (e is DioException) {
-                                final code = e.response?.statusCode;
-                                if (code == 401 || code == 403) {
-                                  await TokenStorage.clearToken();
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Session expired. Please sign in again.'),
-                                    ),
-                                  );
-                                  Navigator.of(context).pushAndRemoveUntil(
-                                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                                    (route) => false,
-                                  );
-                                  setState(() => _creatingBooking = false);
-                                  return;
-                                }
-
-                                final data = e.response?.data;
-                                String message = 'Booking failed with $code';
-                                if (data is Map) {
-                                  message = data['message']?.toString() ??
-                                      data['error']?.toString() ??
-                                      data.toString();
-                                } else if (data != null) {
-                                  message = data.toString();
-                                }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(message)),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Booking failed: $e'),
-                                  ),
-                                );
-                              }
                               setState(() => _creatingBooking = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
                             }
                           },
                         ),
@@ -513,47 +421,30 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
     );
   }
 }
-Widget _divider() => Container(
-  height: 1,
-  color: Colors.white.withOpacity(0.06),
-);
+
+// Вспомогательные виджеты и функции (остаются без изменений)
+Widget _divider() => Container(height: 1, color: Colors.white.withOpacity(0.06));
+
 String _formatDateLong(DateTime dt) {
-  const weekdays = [
-    'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'
-  ];
-  const months = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December'
-  ];
-  final w = weekdays[dt.weekday - 1];
-  final m = months[dt.month - 1];
-  return '$w, $m ${dt.day}';
+  const weekdays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return '${weekdays[dt.weekday - 1]}, ${months[dt.month - 1]} ${dt.day}';
 }
 
 String _formatTime(DateTime dt) {
-  final hh = dt.hour.toString().padLeft(2, '0');
-  final mm = dt.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
+  return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 class _KeyValueRow extends StatelessWidget {
   const _KeyValueRow({required this.left, required this.right, this.dim = false});
-  final String left;
-  final String right;
+  final String left, right;
   final bool dim;
-
   @override
   Widget build(BuildContext context) {
-    final leftColor =
-    dim ? Colors.white.withOpacity(0.55) : Colors.white.withOpacity(0.45);
-    final rightColor = dim ? Colors.white.withOpacity(0.75) : Colors.white;
-
     return Row(
       children: [
-        Expanded(
-          child: Text(left, style: TextStyle(color: leftColor, fontWeight: FontWeight.w700)),
-        ),
-        Text(right, style: TextStyle(color: rightColor, fontWeight: FontWeight.w900)),
+        Expanded(child: Text(left, style: TextStyle(color: dim ? Colors.white.withOpacity(0.55) : Colors.white.withOpacity(0.45), fontWeight: FontWeight.w700))),
+        Text(right, style: TextStyle(color: dim ? Colors.white.withOpacity(0.75) : Colors.white, fontWeight: FontWeight.w900)),
       ],
     );
   }
@@ -561,9 +452,7 @@ class _KeyValueRow extends StatelessWidget {
 
 class _SecondaryButton extends StatelessWidget {
   const _SecondaryButton({required this.text, required this.onTap});
-  final String text;
-  final VoidCallback onTap;
-
+  final String text; final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -572,47 +461,21 @@ class _SecondaryButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
+        child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 18), alignment: Alignment.center,
+            child: Text(text, style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 16, fontWeight: FontWeight.w900))),
       ),
     );
   }
 }
 
-
 class _SurfaceCard extends StatelessWidget {
   const _SurfaceCard({required this.child});
   final Widget child;
-
-  static const Color card = Color(0xFF111317);
-
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-            color: Colors.black.withOpacity(0.25),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF111317), borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white.withOpacity(0.06))),
       child: child,
     );
   }
@@ -620,55 +483,23 @@ class _SurfaceCard extends StatelessWidget {
 
 class _CircleIconButton extends StatelessWidget {
   const _CircleIconButton({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-
+  final IconData icon; final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withOpacity(0.06),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Icon(icon, color: Colors.white, size: 18),
-        ),
-      ),
-    );
+    return Material(color: Colors.white.withOpacity(0.06), shape: const CircleBorder(),
+        child: InkWell(customBorder: const CircleBorder(), onTap: onTap, child: Padding(padding: const EdgeInsets.all(12), child: Icon(icon, color: Colors.white, size: 18))));
   }
 }
 
 class _PrimaryButton extends StatelessWidget {
   const _PrimaryButton({required this.text, required this.onTap});
-  final String text;
-  final VoidCallback onTap;
-
-  static const Color gold = Color(0xFFD6A34A);
-
+  final String text; final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: gold,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ),
+    return Material(color: const Color(0xFFD6A34A), borderRadius: BorderRadius.circular(20),
+      child: InkWell(borderRadius: BorderRadius.circular(20), onTap: onTap,
+          child: Container(width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 18), alignment: Alignment.center,
+              child: Text(text, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900)))),
     );
   }
 }

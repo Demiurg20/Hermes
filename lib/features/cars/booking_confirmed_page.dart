@@ -1,9 +1,6 @@
 import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:hermes/core/app/app_di.dart';
-
 import '../cars/car.dart';
 
 class BookingConfirmedScreen extends StatefulWidget {
@@ -34,6 +31,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
   String? _serverStatus;
 
   late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -41,7 +39,12 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1100),
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _pulseAnimation = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeOutCubic,
     );
 
     _loadServerStatus();
@@ -53,31 +56,34 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
         const Duration(seconds: 10),
       );
 
-      final bookingId = widget.bookingId;
-      Map<String, dynamic>? booking;
+      final String targetId = widget.bookingId;
+      Map<String, dynamic>? foundBooking;
 
       for (final item in bookings) {
         if (item is! Map) continue;
         final id = item["id"] ?? item["bookingId"] ?? item["_id"] ?? item["booking_id"];
-        if (id?.toString() == bookingId) {
-          booking = Map<String, dynamic>.from(item);
+        if (id?.toString() == targetId) {
+          foundBooking = Map<String, dynamic>.from(item);
           break;
         }
       }
 
-      if (booking != null) {
-        _serverStatus = (booking["status"] ??
-                booking["state"] ??
-                booking["bookingStatus"] ??
-                booking["clientStatus"])
-            ?.toString();
+      if (foundBooking != null && mounted) {
+        setState(() {
+          _serverStatus = (foundBooking?["status"] ??
+              foundBooking?["state"] ??
+              foundBooking?["bookingStatus"] ??
+              foundBooking?["clientStatus"])
+              ?.toString();
+        });
       }
-    } catch (_) {
-      // Fallback: оставляем _serverStatus null и показываем поведение по времени.
+    } catch (e) {
+      debugPrint("Error loading server status: $e");
     } finally {
-      if (!mounted) return;
-      setState(() => _processing = false);
-      _pulseController.forward(from: 0);
+      if (mounted) {
+        setState(() => _processing = false);
+        _pulseController.forward(from: 0);
+      }
     }
   }
 
@@ -94,12 +100,10 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
     final now = DateTime.now();
     final diff = widget.pickupDateTime.difference(now);
 
-    // If pickup is within 2 hours (or already started), show Ready for pickup
     if (diff.inSeconds <= 2 * 3600) {
       return 'Ready for pickup';
     }
 
-    // Otherwise show countdown
     final totalSeconds = diff.inSeconds;
     final hours = totalSeconds ~/ 3600;
     final minutes = (totalSeconds % 3600) ~/ 60;
@@ -111,246 +115,153 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
   bool _isReady() {
     if (_serverStatus != null && _serverStatus!.trim().isNotEmpty) {
       final s = _serverStatus!.toLowerCase();
-      if (s.contains('ready') ||
-          s.contains('confirmed') ||
-          s.contains('confirm') ||
-          s.contains('active')) {
-        return true;
-      }
+      return s.contains('ready') || s.contains('confirmed') || s.contains('active');
     }
     final diff = widget.pickupDateTime.difference(DateTime.now());
     return diff.inSeconds <= 2 * 3600;
   }
 
-  static Widget _divider() => Container(
-    height: 1,
-    color: Colors.white.withOpacity(0.06),
-  );
-
   @override
   Widget build(BuildContext context) {
     final status = _statusText();
     final ready = _isReady();
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
         child: Stack(
+          alignment: Alignment.topCenter,
           children: [
-            // One-shot pulse from the top check icon (does not affect layout)
-            IgnorePointer(
-              ignoring: true,
-              child: Positioned.fill(
-                child: AnimatedBuilder(
-                  animation: _pulseController,
-                  builder: (context, _) {
-                    // Only show pulse after processing is done
-                    if (_processing || _pulseController.value == 0) {
-                      return const SizedBox.shrink();
-                    }
+            // Анимация пульса (Исправленная версия)
+            if (!_processing)
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, _) {
+                  double radius = 60 + (size.longestSide * _pulseAnimation.value);
+                  double opacity = (1.0 - _pulseAnimation.value).clamp(0.0, 1.0);
 
-                    final size = MediaQuery.of(context).size;
-                    final maxDiameter = math.sqrt(
-                      size.width * size.width + size.height * size.height,
-                    ) +
-                        200;
+                  return Positioned(
+                    top: 34 + 30 - (radius / 2), // Центрируем по иконке
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Container(
+                        width: radius,
+                        height: radius,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.transparent,
+                          border: Border.all(color: green.withOpacity(0.5), width: 4),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
 
-                    final t = _pulseController.value; // 0..1
-                    final eased = Curves.easeOutCubic.transform(t);
-                    final diameter = 60 + (maxDiameter - 60) * eased;
-                    final opacity = (1.0 - t).clamp(0.0, 1.0);
+            // Основной контент
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 34),
 
-                    // Anchor pulse to the check icon center
-                    const topPadding = 34.0;
-                    const iconSize = 60.0;
-                    final originY = topPadding + (iconSize / 2);
+                          // Иконка статуса
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: (_processing ? gold : green).withOpacity(0.18),
+                              border: Border.all(color: _processing ? gold : green, width: 2),
+                            ),
+                            child: _processing
+                                ? const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: gold),
+                            )
+                                : const Icon(Icons.check_rounded, color: green, size: 32),
+                          ),
 
-                    return Stack(
-                      children: [
-                        Positioned(
-                          left: (MediaQuery.of(context).size.width - diameter) / 2,
-                          top: originY - (diameter / 2),
-                          child: Opacity(
-                            opacity: opacity,
-                            child: Container(
-                              width: diameter,
-                              height: diameter,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: green.withOpacity(0.10 * opacity),
-                                border: Border.all(
-                                  color: green.withOpacity(0.95),
-                                  width: 10,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: green.withOpacity(0.45 * opacity),
-                                    blurRadius: 90,
-                                    spreadRadius: 24,
+                          const SizedBox(height: 22),
+
+                          Text(
+                            _processing ? 'Processing Payment…' : 'Booking Confirmed!',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _processing ? 'Please wait...' : 'Your car has been successfully booked',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          if (!_processing) ...[
+                            // Карточка машины
+                            _SurfaceCard(
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      widget.car.imageUrl,
+                                      width: 80,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, e, s) => Container(width: 80, height: 60, color: Colors.black26, child: const Icon(Icons.image_not_supported)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 15),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('${widget.car.brand} ${widget.car.model}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                        Text('${widget.car.year} • ${widget.car.fuel}', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
 
-            // Existing content + bottom button
-            Column(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 34),
+                            const SizedBox(height: 15),
 
-                      // Top icon: processing loader for 3s, then green check
-                      Center(
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: (_processing ? gold : green).withOpacity(0.18),
-                            border: Border.all(
-                              color: _processing ? gold : green,
-                              width: 2,
+                            // Детали бронирования
+                            _SurfaceCard(
+                              child: Column(
+                                children: [
+                                  _ConfirmRow(icon: Icons.confirmation_number_outlined, title: 'Booking ID', value: widget.bookingId),
+                                  const Divider(color: Colors.white10, height: 24),
+                                  _ConfirmRow(icon: Icons.location_on_outlined, title: 'Pickup Location', value: widget.pickupLocation),
+                                  const Divider(color: Colors.white10, height: 24),
+                                  _ConfirmRow(icon: Icons.timer_outlined, title: 'Status', value: status, valueColor: ready ? green : gold),
+                                ],
+                              ),
                             ),
-                          ),
-                          child: _processing
-                              ? const Padding(
-                            padding: EdgeInsets.all(14),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(gold),
-                            ),
-                          )
-                              : const Icon(Icons.check_rounded, color: green, size: 32),
-                        ),
+                          ],
+                        ],
                       ),
-
-                      const SizedBox(height: 22),
-
-                      Center(
-                        child: Text(
-                          _processing ? 'Processing Payment…' : 'Booking Confirmed!',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          _processing
-                              ? 'Please wait while we confirm your payment'
-                              : 'Your car has been successfully booked',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      if (!_processing) ...[
-                        // Car card
-                        _SurfaceCard(
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: Image.network(
-                                  widget.car.imageUrl,
-                                  width: 76,
-                                  height: 56,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Container(
-                                    width: 76,
-                                    height: 56,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${widget.car.brand} ${widget.car.model}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${widget.car.year} / ${widget.car.fuel}',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.55),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        // Details card
-                        _SurfaceCard(
-                          child: Column(
-                            children: [
-                              _ConfirmRow(
-                                icon: Icons.directions_car_filled_outlined,
-                                title: 'Booking ID',
-                                value: widget.bookingId,
-                              ),
-                              _divider(),
-                              _ConfirmRow(
-                                icon: Icons.location_on_outlined,
-                                title: 'Pickup',
-                                value: widget.pickupLocation,
-                              ),
-                              _divider(),
-                              _ConfirmRow(
-                                icon: Icons.access_time_rounded,
-                                title: 'Status',
-                                value: status,
-                                valueColor: ready ? green : gold,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-
-                if (!_processing)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: _PrimaryButton(
-                      text: 'Back to Home',
-                      onTap: () {
-                        Navigator.of(context).popUntil((route) => route.isFirst);
-                      },
                     ),
                   ),
-              ],
+
+                  if (!_processing)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20, top: 10),
+                      child: _PrimaryButton(
+                        text: 'Back to Home',
+                        onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
@@ -360,56 +271,29 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
 }
 
 class _ConfirmRow extends StatelessWidget {
-  const _ConfirmRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.valueColor,
-  });
-
   final IconData icon;
   final String title;
   final String value;
   final Color? valueColor;
 
-  static const Color gold = Color(0xFFD6A34A);
+  const _ConfirmRow({required this.icon, required this.title, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: gold.withOpacity(0.16),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: gold, size: 18),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: const Color(0xFFD6A34A).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: const Color(0xFFD6A34A), size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.55),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: TextStyle(
-                  color: valueColor ?? Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                ),
-              ),
+              Text(title, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+              Text(value, style: TextStyle(color: valueColor ?? Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
         ),
@@ -419,61 +303,34 @@ class _ConfirmRow extends StatelessWidget {
 }
 
 class _SurfaceCard extends StatelessWidget {
-  const _SurfaceCard({required this.child});
   final Widget child;
-
-  static const Color card = Color(0xFF111317);
-
+  const _SurfaceCard({required this.child});
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-            color: Colors.black.withOpacity(0.25),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF111317), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withOpacity(0.05))),
       child: child,
     );
   }
 }
 
 class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({required this.text, required this.onTap});
   final String text;
   final VoidCallback onTap;
-
-  static const Color gold = Color(0xFFD6A34A);
-
+  const _PrimaryButton({required this.text, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: gold,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFD6A34A),
+        foregroundColor: Colors.black,
+        minimumSize: const Size(double.infinity, 55),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
       ),
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
     );
   }
 }
