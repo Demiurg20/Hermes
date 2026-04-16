@@ -383,12 +383,6 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                                 ),
                               );
 
-                              // 2. 🔥 СПИСАНИЕ СРЕДСТВ
-                              // Высчитываем новый баланс
-                              final double newBalance = balance! - total;
-                              // Вызываем обновление в репозитории (проверь название метода updateBalance)
-                              await AppDI.userRepo.updateBalance(newBalance);
-
                               if (!mounted) return;
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(

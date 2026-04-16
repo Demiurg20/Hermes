@@ -19,7 +19,7 @@ class ApiCarRepository implements CarRepository {
     // 👇 ДОБАВЬТЕ ЭТОТ БЛОК (try-catch с логированием)
     try {
       print("=== FETCHING CARS FROM API ===");
-      final raw = await _api.getCarsBackend();
+      final raw = await _api.getCars();
       print("RAW DATA TYPE: ${raw.runtimeType}");
       print("RAW DATA: $raw");
 

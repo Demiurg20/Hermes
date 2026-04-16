@@ -54,7 +54,7 @@ class _LoginPageState extends State<LoginPage> {
       print("LOGIN RESPONSE: ${response.data}");
       final token = response.data["token"];
 
-      await TokenStorage.saveToken(token);
+      await TokenStorage.saveTokens(response.data["token"], response.data["refreshToken"]);
 
       if (!mounted) return;
 

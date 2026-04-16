@@ -5,8 +5,7 @@ class BookingRepository {
   BookingRepository(this._api);
   final ApiService _api;
 
-  /// Creates a booking using backend contract:
-  /// carId, pickUpLocationId, dropOffLocationId, startDate, endDate (ISO 8601).
+  /// Создание бронирования
   Future<String> createBooking(BookingRequest request) async {
     final raw = await _api.createBookingBackend(request.toJson());
 
@@ -26,16 +25,19 @@ class BookingRepository {
     throw StateError('Unexpected createBooking response: $raw');
   }
 
-  Future<bool> clientReturn(String bookingId) async {
-    final raw = await _api.clientReturnBackend(bookingId);
-    return _extractSuccessBool(raw);
+  /// 🔥 ОБНОВЛЕНО: Начало поездки (Confirm) с двумя фото
+  /// Переименовал в confirmBooking, чтобы в ReturnCarScreen не было ошибки
+  Future<void> confirmBooking(String bookingId, List<int> img1, List<int> img2) async {
+    // Вызываем метод API, который мы обновили ранее
+    await _api.clientConfirmBackend(bookingId, img1, img2);
   }
 
-  Future<bool> clientConfirm(String bookingId) async {
-    final raw = await _api.clientConfirmBackend(bookingId);
-    return _extractSuccessBool(raw);
+  /// 🔥 ОБНОВЛЕНО: Возврат машины с двумя фото
+  Future<void> clientReturn(String bookingId, List<int> img1, List<int> img2) async {
+    await _api.clientReturnBackend(bookingId, img1, img2);
   }
 
+  /// Методы для владельца (Owner)
   Future<bool> ownerReturn(String bookingId) async {
     final raw = await _api.ownerReturnBackend(bookingId);
     return _extractSuccessBool(raw);
@@ -51,6 +53,7 @@ class BookingRepository {
     return _extractSuccessBool(raw);
   }
 
+  /// Получение заявок для владельца
   Future<List<dynamic>> getOwnerRequests() async {
     final raw = await _api.getOwnerRequestsBackend();
     if (raw is Map && raw["data"] is List) return raw["data"];
@@ -58,6 +61,7 @@ class BookingRepository {
     return const [];
   }
 
+  /// Получение своих бронирований (для клиента)
   Future<List<dynamic>> getMyBookings() async {
     final raw = await _api.getMyBookingsBackend();
     if (raw is Map && raw["data"] is List) return raw["data"];
@@ -66,7 +70,6 @@ class BookingRepository {
   }
 
   bool _extractSuccessBool(dynamic raw) {
-    // Backend может вернуть {success: true} или просто текст/объект.
     if (raw is Map) {
       final success = raw["success"] ?? raw["ok"] ?? raw["status"] ?? raw["message"];
       if (success is bool) return success;
