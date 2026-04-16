@@ -1,6 +1,6 @@
 class User {
   final String name;
-  final double balance;
+  final int balance; // Изменили на int по просьбе бэкендера
 
   User({
     required this.name,
@@ -8,17 +8,19 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] ?? json['user'] ?? json;
+    // 1. Извлекаем вложенный объект 'user', где лежит баланс
+    final userData = json['user'] as Map<String, dynamic>?;
 
     return User(
-      name: data['first_name'] ??
-          data['name'] ??
-          data['username'] ??
+      // 2. Имя берем из корня (firstName), как в твоем ответе из Postman
+      name: json['firstName'] ??
+          userData?['username'] ??
+          userData?['email'] ??
           'User',
 
-      balance: data['balance'] ??
-          data['money'] ??
-          0,
+      // 3. Баланс берем строго из userData['balance']
+      // Используем ( ... as num?).toInt() для максимальной надежности
+      balance: (userData?['balance'] as num? ?? 0).toInt(),
     );
   }
 }

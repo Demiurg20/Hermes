@@ -26,7 +26,7 @@ class _HomePageState extends State<HomePage> {
 
   /// 👤 USER
   String? userName;
-  double balance = 0;
+  int balance = 0;
   bool isUserLoading = true;
 
   final TextEditingController searchController = TextEditingController();
@@ -72,7 +72,7 @@ class _HomePageState extends State<HomePage> {
       if (mounted) {
         setState(() {
           userName = user.name;
-          balance = user.balance;
+          balance = user.balance.toInt();
           isUserLoading = false;
         });
       }
@@ -82,17 +82,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// 📦 LOAD BOOKINGS
+  /// 📦 LOAD BOOKINGS (Updated for two endpoints)
   Future<void> loadBookings() async {
     try {
-      final allBookings = await AppDI.bookingRepo.getMyBookings();
-      // Фильтруем только те, которые можно начать или вернуть
-      activeBookings = allBookings.where((b) {
-        final status = b["status"];
-        return status == "PENDING" || status == "CONFIRMED" || status == "ACTIVE";
-      }).toList();
-      if (mounted) setState(() {});
+      // Запускаем оба запроса одновременно для скорости
+      final results = await Future.wait([
+        AppDI.bookingRepo.getMyBookingsPending(),   // Машины для старта
+        AppDI.bookingRepo.getMyBookingsConfirmed(), // Машины для возврата
+      ]);
+
+      final List<dynamic> pendingBookings = results[0];
+      final List<dynamic> confirmedBookings = results[1];
+
+      // Объединяем их в один общий список активных поездок
+      final List<dynamic> combined = [...pendingBookings, ...confirmedBookings];
+
+      if (mounted) {
+        setState(() {
+          activeBookings = combined;
+        });
+        debugPrint("Total active trips loaded: ${activeBookings.length}");
+      }
     } catch (e) {
-      debugPrint("Failed to load bookings: $e");
+      debugPrint("Failed to load bookings from new endpoints: $e");
     }
   }
 
@@ -152,25 +164,40 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Виджет списка забронированных машин
   Widget _buildBookingList() {
     return SizedBox(
-      height: 160,
+      height: 165, // Немного увеличим высоту для комфорта
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: activeBookings.length,
         itemBuilder: (context, index) {
           final booking = activeBookings[index];
-          final bool isActive = booking["status"] == "ACTIVE";
+          // Если статус ACTIVE — машина уже у пользователя, нужно "Вернуть"
+          // Если статус CONFIRMED или PENDING — машина ждет старта
+// Получаем статус и переводим в верхний регистр для надежности
+          final String status = (booking["status"] ?? "").toString().toUpperCase();
+
+// ТЕПЕРЬ ЛОГИКА ТАКАЯ:
+// Если статус CONFIRMED — значит машина уже в поездке и её можно вернуть.
+          final bool isActive = status == "CONFIRMED";
+
+// Если статус PENDING — значит это новая бронь, которую надо подтвердить (Start).
+          final bool isPending = status == "PENDING";
 
           return Container(
-            width: 280,
+            width: 300,
             margin: const EdgeInsets.only(right: 15),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+              color: isActive
+                  ? Colors.green.withOpacity(0.05) // Зеленоватый фон для активной поездки
+                  : AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                  color: isActive
+                      ? Colors.green.withOpacity(0.3)
+                      : AppColors.primary.withOpacity(0.3)
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,61 +208,101 @@ class _HomePageState extends State<HomePage> {
                     Expanded(
                       child: Text(
                         "${booking["carBrand"]} ${booking["carModel"]}",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isActive ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isActive ? "ACTIVE" : "READY",
-                        style: TextStyle(color: isActive ? Colors.green : Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    const SizedBox(width: 8),
+                    _buildStatusBadge(status),
                   ],
                 ),
                 const Spacer(),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 14, color: AppColors.greyText),
+                    Icon(Icons.access_time_rounded, size: 14, color: Colors.white.withOpacity(0.5)),
                     const SizedBox(width: 6),
-                    Text(booking["startDate"].toString().substring(0, 10), style: const TextStyle(color: AppColors.greyText, fontSize: 12)),
+                    Text(
+                      isActive ? "Trip in progress..." : "Waiting for pick-up",
+                      style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
 
-                // КНОПКА START / RETURN
+                // УНИВЕРСАЛЬНАЯ КНОПКА
                 SizedBox(
                   width: double.infinity,
+                  height: 45,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: isActive ? Colors.white : AppColors.primary,
                       foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    onPressed: () async {
-                      // Переходим на экран фото
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReturnCarScreen(
-                            bookingData: booking,
-                            isStartingTrip: !isActive, // Если не активна — значит начинаем
-                          ),
-                        ),
-                      );
+                      onPressed: () async {
+                        // 1. Получаем актуальный статус из объекта бронирования
+                        final String currentStatus = (booking["status"] ?? "").toString().toUpperCase();
 
-                      if (result == true) {
-                        _onRefresh(); // Обновляем данные, если поездка началась
-                      }
-                    },
+                        // Согласно логике бэкенда:
+                        // PENDING — машину нужно подтвердить (Start Journey)
+                        // CONFIRMED — машина в пути, её можно вернуть (Return Car)
+                        final bool isPending = currentStatus == "PENDING";
+                        final bool isConfirmed = currentStatus == "CONFIRMED";
+
+                        debugPrint("--- NAVIGATION: Открываю камеру для брони #${booking['id']} (Статус: $currentStatus) ---");
+
+                        // 2. Открываем экран фотографий
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ReturnCarScreen(
+                              bookingData: booking,
+                              // Если статус PENDING, значит мы начинаем поездку (isStartingTrip = true)
+                              isStartingTrip: isPending,
+                            ),
+                          ),
+                        );
+
+                        debugPrint("--- NAVIGATION: Вернулся с экрана. Успех: $result ---");
+
+                        // 3. Если фото успешно отправлены и бэкенд ответил OK
+                        if (result == true) {
+                          // Небольшая пауза, чтобы база данных на сервере успела обновиться
+                          await Future.delayed(const Duration(milliseconds: 800));
+
+                          if (mounted) {
+                            debugPrint("--- ACTION: Обновляю данные на главной странице ---");
+                            // Вызываем обновление обоих списков (Pending + Confirmed)
+                            await _onRefresh();
+
+                            // Выводим красивое уведомление в зависимости от того, что мы сделали
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      isPending
+                                          ? "Journey started! Drive safely."
+                                          : "Car returned successfully!",
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: isPending ? Colors.blueAccent : Colors.green,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            );
+                          }
+                        }
+                      },
                     child: Text(
-                      isActive ? "Return Car" : "Start Trip",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      isActive ? "Finish & Return Car" : "Start Trip & Take Photos",
+                      style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),
                 ),
@@ -243,6 +310,27 @@ class _HomePageState extends State<HomePage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // Вспомогательный виджет для красивого статуса
+  Widget _buildStatusBadge(String status) {
+    bool isActive = status == "ACTIVE";
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isActive ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        isActive ? "IN USE" : "READY",
+        style: TextStyle(
+            color: isActive ? Colors.green : Colors.orange,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5
+        ),
       ),
     );
   }
@@ -341,7 +429,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 10),
             isUserLoading
                 ? const Text("Loading...", style: TextStyle(fontSize: 24))
-                : Text("\$${balance.toStringAsFixed(2)}", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                : Text("\$${balance}", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.primary)),
           ],
         ),
       ),

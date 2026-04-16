@@ -24,15 +24,13 @@ class _ReturnCarScreenState extends State<ReturnCarScreen> {
   Uint8List? _image2Bytes;
   bool _isProcessing = false;
 
-  // Используем золотой цвет из твоей темы
   static const Color gold = AppColors.primary;
 
-  /// Функция для открытия камеры и получения байтов
   Future<void> _takePhoto(int photoNumber) async {
     try {
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 50, // Сжимаем фото для API
+        imageQuality: 50,
       );
 
       if (photo != null) {
@@ -47,8 +45,8 @@ class _ReturnCarScreenState extends State<ReturnCarScreen> {
     }
   }
 
-  /// Главная логика отправки
   Future<void> _handleAction() async {
+    // 1. Проверка наличия фото
     if (_image1Bytes == null || _image2Bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please take both photos (Front & Rear)")),
@@ -59,19 +57,17 @@ class _ReturnCarScreenState extends State<ReturnCarScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      // Приводим ID к строке
       final String bookingId = widget.bookingData["id"].toString();
 
       if (widget.isStartingTrip) {
-        // Вызываем confirmBooking (Начало поездки + списание денег)
-        // Мы используем .toList(), так как репозиторий ждет List<int>
+        // 🔥 СТАРТ ПОЕЗДКИ
         await AppDI.bookingRepo.confirmBooking(
           bookingId,
           _image1Bytes!.toList(),
           _image2Bytes!.toList(),
         );
       } else {
-        // Вызываем clientReturn (Завершение поездки)
+        // 🔥 ВОЗВРАТ МАШИНЫ
         await AppDI.bookingRepo.clientReturn(
           bookingId,
           _image1Bytes!.toList(),
@@ -79,15 +75,17 @@ class _ReturnCarScreenState extends State<ReturnCarScreen> {
         );
       }
 
+      // 2. Даем бэкенду время обновить статус (0.5 сек)
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // 3. ИСПРАВЛЕНО: проверяем mounted и возвращаемся
       if (!mounted) return;
 
-      // Сразу обновляем баланс пользователя на устройстве
-      await AppDI.userRepo.getUserInfo();
-
-      // Возвращаемся на главную с сигналом об успехе
-      Navigator.pop(context, true);
+      // Возвращаем TRUE, чтобы HomePage вызвал _onRefresh()
+      Navigator.of(context).pop(true);
 
     } catch (e) {
+      debugPrint("Action Error: $e");
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -102,126 +100,142 @@ class _ReturnCarScreenState extends State<ReturnCarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String brand = widget.bookingData["carBrand"] ?? "Car";
-    final String model = widget.bookingData["carModel"] ?? "";
+    // Используем ключи из твоего API (Changan Uni-Z и т.д.)
+    final String brand = widget.bookingData["carBrand"] ?? "";
+    final String model = widget.bookingData["carModel"] ?? "Car";
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0C0E),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context, false),
         ),
         title: Text(
-          widget.isStartingTrip ? "Start Journey" : "Return Car",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          widget.isStartingTrip ? "START JOURNEY" : "RETURN CAR",
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2
+          ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            Text(
-              "$brand $model",
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.isStartingTrip
-                  ? "Confirm car condition to start"
-                  : "Finalize your trip",
-              style: const TextStyle(color: Colors.white54, fontSize: 14),
-            ),
-            const SizedBox(height: 40),
-
-            // Фото 1
-            _buildPhotoCard("FRONT VIEW", _image1Bytes, () => _takePhoto(1)),
-            const SizedBox(height: 20),
-            // Фото 2
-            _buildPhotoCard("REAR VIEW", _image2Bytes, () => _takePhoto(2)),
-
-            const SizedBox(height: 40),
-
-            // Кнопка действия
-            SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: gold,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: _isProcessing ? null : _handleAction,
-                child: _isProcessing
-                    ? const CircularProgressIndicator(color: Colors.black)
-                    : Text(
-                  widget.isStartingTrip ? "CONFIRM & START" : "SUBMIT RETURN",
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              Text(
+                "$brand $model".toUpperCase(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: gold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  widget.isStartingTrip
+                      ? "UPLOAD PHOTOS TO UNLOCK"
+                      : "UPLOAD PHOTOS TO FINISH TRIP",
+                  style: const TextStyle(color: gold, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 40),
+
+              _buildPhotoCard("FRONT VIEW", _image1Bytes, () => _takePhoto(1)),
+              const SizedBox(height: 20),
+              _buildPhotoCard("REAR VIEW", _image2Bytes, () => _takePhoto(2)),
+
+              const SizedBox(height: 40),
+
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: gold,
+                    foregroundColor: Colors.black,
+                    disabledBackgroundColor: Colors.grey,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _isProcessing ? null : _handleAction,
+                  child: _isProcessing
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                  )
+                      : Text(
+                    widget.isStartingTrip ? "START TRIP NOW" : "FINALIZE RETURN",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// Виджет карточки для фото
   Widget _buildPhotoCard(String label, Uint8List? bytes, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        height: 200,
+        height: 180,
         decoration: BoxDecoration(
-          color: const Color(0xFF111317),
-          borderRadius: BorderRadius.circular(24),
+          color: const Color(0xFF16181D),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: bytes != null ? gold : Colors.white.withOpacity(0.05),
-            width: 2,
+            width: 1.5,
           ),
-          image: bytes != null
-              ? DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover)
-              : null,
         ),
-        child: bytes == null
-            ? Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add_a_photo_rounded, color: gold, size: 42),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: bytes != null
+              ? Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.memory(bytes, fit: BoxFit.cover),
+              Container(color: Colors.black26),
+              const Center(child: Icon(Icons.check_circle, color: gold, size: 50)),
+            ],
+          )
+              : Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.camera_alt_outlined, color: gold, size: 32),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.1,
+                ),
               ),
-            ),
-          ],
-        )
-            : Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: Colors.black26,
+            ],
           ),
-          child: const Icon(Icons.check_circle, color: gold, size: 40),
         ),
       ),
     );

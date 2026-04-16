@@ -69,6 +69,38 @@ class BookingRepository {
     return const [];
   }
 
+  /// 🔥 ПОЛУЧЕНИЕ СПИСКА ОЖИДАЮЩИХ ПОДТВЕРЖДЕНИЯ (Start Trip)
+  Future<List<dynamic>> getMyBookingsPending() async {
+    final dynamic raw = await _api.getMyBookingsPending(); // Получаем dynamic
+
+    // Проверяем: если это Map, значит можем искать ключ "data"
+    if (raw is Map<String, dynamic> && raw["data"] is List) {
+      return raw["data"];
+    }
+
+    // Если это сразу список (List)
+    if (raw is List) {
+      return raw;
+    }
+
+    return const [];
+  }
+
+  Future<List<dynamic>> getMyBookingsConfirmed() async {
+    final dynamic raw = await _api.getMyBookingsConfirmed();
+
+    // 🔥 ДОБАВЬ ЭТОТ ПРИНТ
+    print("DEBUG CONFIRMED API: $raw");
+
+    if (raw is Map<String, dynamic> && raw["data"] is List) {
+      return raw["data"];
+    }
+    if (raw is List) {
+      return raw;
+    }
+    return const [];
+  }
+
   bool _extractSuccessBool(dynamic raw) {
     if (raw is Map) {
       final success = raw["success"] ?? raw["ok"] ?? raw["status"] ?? raw["message"];

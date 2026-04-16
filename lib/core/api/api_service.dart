@@ -92,10 +92,24 @@ class ApiService {
   /// 👤 PROFILE
   Future<Map<String, dynamic>> getUserInfo() async {
     final response = await dio.get("/user/info/profile");
-    if (response.data is Map && response.data["data"] != null) {
-      return Map<String, dynamic>.from(response.data["data"]);
+
+    // Печатаем данные в консоль, чтобы убедиться, что они пришли
+    print("DEBUG PROFILE RESPONSE: ${response.data}");
+
+    // Если данные пришли в виде Map (как мы видели в Postman)
+    if (response.data is Map<String, dynamic>) {
+      final responseData = response.data as Map<String, dynamic>;
+
+      // Если бэкенд обернул всё в ключ "data", берем из него
+      if (responseData.containsKey("data") && responseData["data"] != null) {
+        return Map<String, dynamic>.from(responseData["data"]);
+      }
+
+      // Если "data" нет (как в твоем логе Postman), возвращаем весь ответ
+      return responseData;
     }
-    return Map<String, dynamic>.from(response.data);
+
+    throw Exception("Unexpected response format for profile");
   }
 
   /// 🚗 CARS
@@ -149,6 +163,25 @@ class ApiService {
   Future<dynamic> getMyBookingsBackend() async {
     final response = await dio.get("/bookings/my-bookings");
     return response.data;
+  }
+
+  /// Получение списка броней, которые нужно ПОДТВЕРДИТЬ (Start Trip)
+  Future<List<dynamic>> getMyBookingsPending() async {
+    final response = await dio.get("/bookings/my-bookings-pending");
+    final data = response.data;
+    // Проверяем, если бэкенд оборачивает список в объект "data"
+    if (data is Map && data["data"] is List) return data["data"];
+    if (data is List) return data;
+    return [];
+  }
+
+  /// Получение списка броней, которые УЖЕ ПОДТВЕРЖДЕНЫ (Return Car)
+  Future<List<dynamic>> getMyBookingsConfirmed() async {
+    final response = await dio.get("/bookings/my-bookings-confirmed");
+    final data = response.data;
+    if (data is Map && data["data"] is List) return data["data"];
+    if (data is List) return data;
+    return [];
   }
 
   /// 🛠 OWNER METHODS

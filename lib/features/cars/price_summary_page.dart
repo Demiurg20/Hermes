@@ -42,7 +42,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
   static const Color gold = Color(0xFFD6A34A);
   static const Color green = Color(0xFF3DDC84);
 
-  double? balance;
+  int? balance;
   bool isBalanceLoading = true;
   bool agreed = false;
   bool _creatingBooking = false;
@@ -58,7 +58,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
       final user = await AppDI.userRepo.getUserInfo();
       if (mounted) {
         setState(() {
-          balance = user.balance;
+          balance = user.balance.toInt();
           isBalanceLoading = false;
         });
       }
@@ -286,7 +286,7 @@ class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
                     isBalanceLoading
                         ? const Text('Loading...', style: TextStyle(color: Colors.white))
                         : Text(
-                      '\$${balance?.toStringAsFixed(2) ?? '0.00'}',
+                      '\$${balance ?? '0'}',
                       style: TextStyle(
                         color: hasEnoughMoney ? green : Colors.redAccent,
                         fontWeight: FontWeight.w900,

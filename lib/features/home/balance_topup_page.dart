@@ -11,7 +11,7 @@ class BalanceTopUpPage extends StatefulWidget {
 }
 
 class _BalanceTopUpPageState extends State<BalanceTopUpPage> {
-  double? _balance;
+  int? _balance;
   bool _loading = true;
   String? _error;
 
