@@ -442,7 +442,7 @@ class _HomePageState extends State<HomePage> {
       children: [
         const Text("Popular Cars", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         TextButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SelectCarPage(cars: cars))),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SelectCarPage(initialCars: cars))),
           child: const Text("View all", style: TextStyle(color: AppColors.primary)),
         ),
       ],

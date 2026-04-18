@@ -246,7 +246,10 @@ class _CarDetailsView extends StatelessWidget {
                         border: Border.all(color: Colors.white.withOpacity(0.06)),
                       ),
                       child: Text(
-                        "This car is clean, quiet, and very comfortable for city trips. The battery is always kept above 70%, and the interior is well maintained. Perfect for daily driving and long rides — smooth acceleration and great visibility.",
+                        // 🔥 ЗАМЕНИ НА ЭТО:
+                        car.description.isEmpty
+                            ? "No description provided."
+                            : car.description,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.78),
                           fontSize: 15,

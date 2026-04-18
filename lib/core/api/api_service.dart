@@ -229,4 +229,20 @@ class ApiService {
   Future<void> addUserInfo(FormData formData) async {
     await dio.post("/user/info/add", data: formData);
   }
+
+  /// 🚗 Исправленный метод добавления машины
+  Future<void> addCarBackend(Map<String, dynamic> data, List<int> imageBytes) async {
+    final formData = FormData.fromMap({
+      ...data,
+      // Убедись, что ключ для картинки "image" совпадает с тем, что ждет бэкенд
+      "image": MultipartFile.fromBytes(
+        imageBytes,
+        filename: "car_${DateTime.now().millisecondsSinceEpoch}.jpg",
+      ),
+    });
+
+    // 🔥 МЕНЯЕМ ПУТЬ ЗДЕСЬ
+    final response = await dio.post("/cars/add-car", data: formData);
+    return response.data;
+  }
 }

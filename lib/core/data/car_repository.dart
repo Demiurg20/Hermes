@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:hermes/core/api/api_service.dart';
 import 'package:hermes/features/cars/car.dart';
 
@@ -8,7 +7,6 @@ abstract class CarRepository {
   Future<Car> getCarById(String id);
 }
 
-/// API-backed repository (wire real endpoints tomorrow)
 class ApiCarRepository implements CarRepository {
   ApiCarRepository(this._api);
 
@@ -16,15 +14,11 @@ class ApiCarRepository implements CarRepository {
 
   @override
   Future<List<Car>> getCars() async {
-    // 👇 ДОБАВЬТЕ ЭТОТ БЛОК (try-catch с логированием)
     try {
       print("=== FETCHING CARS FROM API ===");
       final raw = await _api.getCars();
-      print("RAW DATA TYPE: ${raw.runtimeType}");
-      print("RAW DATA: $raw");
 
       if (raw.isEmpty) {
-        print("WARNING: Empty list received from API");
         return [];
       }
 
@@ -35,21 +29,16 @@ class ApiCarRepository implements CarRepository {
           return Car.fromJson(Map<String, dynamic>.from(e));
         } catch (e, stack) {
           print("Error parsing car: $e");
-          print("Stack: $stack");
-          print("Problematic data: $e");
           rethrow;
         }
       })
           .toList();
 
-      print("PARSED ${cars.length} CARS");
       return cars;
     } catch (e, stack) {
       print("ERROR in getCars: $e");
-      print("Stack: $stack");
       rethrow;
     }
-    // 👆 КОНЕЦ ДОБАВЛЕННОГО БЛОКА
   }
 
   @override
@@ -67,6 +56,7 @@ class MockCarRepository implements CarRepository {
   Future<List<Car>> getCars() async {
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
+    // 👇 ОБНОВЛЕННЫЕ ОБЪЕКТЫ (добавлены description и capacity)
     return const [
       Car(
         id: 'car_1',
@@ -74,9 +64,10 @@ class MockCarRepository implements CarRepository {
         brand: 'TESLA',
         model: 'Model 3',
         rating: 4.9,
-        imageUrl:
-        'https://cdn.jdpower.com/ArticleImages/JDP_2025%20Tesla%20Model%203%20Long%20Range%20Rear-Wheel%20Drive%20Stealth%20Gray%20Front%20Quarter%20View.JPG',
+        imageUrl: 'https://cdn.jdpower.com/ArticleImages/JDP_2025%20Tesla%20Model%203%20Long%20Range%20Rear-Wheel%20Drive%20Stealth%20Gray%20Front%20Quarter%20View.JPG',
         seats: 5,
+        capacity: 5, // Добавлено
+        description: 'Perfect electric car for city driving.', // Добавлено
         fuel: 'Electric',
         type: 'Auto',
         year: 2024,
@@ -91,9 +82,10 @@ class MockCarRepository implements CarRepository {
         brand: 'BMW',
         model: '5 Series',
         rating: 4.8,
-        imageUrl:
-        'https://s.auto.drom.ru/i24286/c/photos/fullsize/bmw/5-series/bmw_5-series_1163958.jpg',
+        imageUrl: 'https://s.auto.drom.ru/i24286/c/photos/fullsize/bmw/5-series/bmw_5-series_1163958.jpg',
         seats: 5,
+        capacity: 5, // Добавлено
+        description: 'Luxury sedan with hybrid performance.', // Добавлено
         fuel: 'Hybrid',
         type: 'Auto',
         year: 2023,
@@ -108,9 +100,10 @@ class MockCarRepository implements CarRepository {
         brand: 'Ford',
         model: 'Explorer',
         rating: 5.0,
-        imageUrl:
-        'https://avatars.mds.yandex.net/get-verba/216201/2a0000016a2046a941f97a2fce152dfc3d26/auto_main',
+        imageUrl: 'https://avatars.mds.yandex.net/get-verba/216201/2a0000016a2046a941f97a2fce152dfc3d26/auto_main',
         seats: 7,
+        capacity: 7, // Добавлено
+        description: 'Large family SUV with plenty of space.', // Добавлено
         fuel: 'Petrol',
         type: 'Auto',
         year: 2020,

@@ -11,6 +11,8 @@ class Car {
   final String fuel;
   final String type;
   final int year;
+  final String description; // 👈 1. ДОБАВИЛИ ПОЛЕ ОПИСАНИЯ
+  final int capacity;       // 👈 ДОБАВИЛИ ПОЛЕ CAPACITY
 
   final List<String> features;
 
@@ -32,6 +34,8 @@ class Car {
     required this.fuel,
     required this.type,
     required this.year,
+    required this.description, // 👈 2. ДОБАВИЛИ В КОНСТРУКТОР
+    required this.capacity,    // 👈 ДОБАВИЛИ В КОНСТРУКТОР
     required this.features,
     required this.pricePerHour,
     required this.pricePerDay,
@@ -45,7 +49,7 @@ class Car {
   int get price => pricePerHour;
 
   factory Car.fromJson(Map<String, dynamic> json) {
-    // Base URL for turning relative image paths like "/static/..." into a full URL.
+    // Base URL for turning relative image paths
     const String backendBaseUrl = 'https://ungrudging-carson-nonvituperatively.ngrok-free.dev';
 
     final rawImage = (json['imageUrl'] ?? json['image'] ?? '').toString();
@@ -57,7 +61,6 @@ class Car {
         ? '$backendBaseUrl$rawImage'
         : '$backendBaseUrl/$rawImage'));
 
-    // Backend иногда отдаёт id как `id`, иногда как `_id` (Mongo) или `carId`.
     final rawId = json['id'] ??
         json['_id'] ??
         json['carId'] ??
@@ -69,22 +72,20 @@ class Car {
       id: id,
       bookingCarId: _parseBookingCarId(json),
 
-      // Backend uses brand/model; keep fallbacks for older test sources.
       brand: (json['brand'] ?? '').toString(),
       model: (json['model'] ?? json['title'] ?? '').toString(),
 
-      // Backend currently does not provide rating.
-      rating: (json['rating'] as num?)?.toDouble() ?? 4.7,
+      // 👈 3. ЗАБИРАЕМ ДАННЫЕ ИЗ JSON (Ключи должны совпадать с твоим DTO в Java)
+      description: (json['description'] ?? 'No description provided.').toString(),
+      capacity: (json['capacity'] as num?)?.toInt() ?? 1,
 
+      rating: (json['rating'] as num?)?.toDouble() ?? 4.7,
       imageUrl: imageUrl,
 
-      // Backend uses `capacity` for seats.
-      seats: (json['capacity'] as num?)?.toInt() ?? (json['seats'] as num?)?.toInt() ?? 4,
+      // Backend использует capacity для мест (seats), если нет отдельного поля
+      seats: (json['seats'] as num?)?.toInt() ?? (json['capacity'] as num?)?.toInt() ?? 4,
 
-      // Backend uses `fuelType`.
       fuel: (json['fuelType'] ?? json['fuel'] ?? 'Petrol').toString(),
-
-      // Backend uses `transmission`.
       type: (json['transmission'] ?? json['type'] ?? 'Auto').toString(),
 
       year: (json['year'] as num?)?.toInt() ?? DateTime.now().year,
@@ -94,13 +95,12 @@ class Car {
           : const <String>[],
 
       pricePerHour: (json['pricePerHour'] as num?)?.toInt() ?? (json['price'] as num?)?.toInt() ?? 0,
-      pricePerDay: (json['pricePerDay'] as num?)?.toInt() ?? (json['price'] as num?)?.toInt() ?? 0,
+      pricePerDay: (json['pricePerDay'] as num?)?.toInt() ?? ((json['pricePerHour'] as num?)?.toInt() ?? 0) * 24,
 
       accentColor: const Color(0xFFD6A34A),
     );
   }
 
-  /// Prefer `carId`, then numeric `id` (ignores Mongo hex `_id` unless `id` is decimal).
   static int? _parseBookingCarId(Map<String, dynamic> json) {
     final fromCarId = _parsePositiveInt(json['carId']);
     if (fromCarId != null) return fromCarId;
