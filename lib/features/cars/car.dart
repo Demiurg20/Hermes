@@ -11,8 +11,8 @@ class Car {
   final String fuel;
   final String type;
   final int year;
-  final String description; // 👈 1. ДОБАВИЛИ ПОЛЕ ОПИСАНИЯ
-  final int capacity;       // 👈 ДОБАВИЛИ ПОЛЕ CAPACITY
+  final String description;
+  final int capacity;
 
   final List<String> features;
 
@@ -34,8 +34,8 @@ class Car {
     required this.fuel,
     required this.type,
     required this.year,
-    required this.description, // 👈 2. ДОБАВИЛИ В КОНСТРУКТОР
-    required this.capacity,    // 👈 ДОБАВИЛИ В КОНСТРУКТОР
+    required this.description,
+    required this.capacity,
     required this.features,
     required this.pricePerHour,
     required this.pricePerDay,
@@ -49,9 +49,7 @@ class Car {
   int get price => pricePerHour;
 
   factory Car.fromJson(Map<String, dynamic> json) {
-    // Base URL for turning relative image paths
     const String backendBaseUrl = 'https://ungrudging-carson-nonvituperatively.ngrok-free.dev';
-
     final rawImage = (json['imageUrl'] ?? json['image'] ?? '').toString();
     final imageUrl = rawImage.isEmpty
         ? ''
@@ -75,14 +73,12 @@ class Car {
       brand: (json['brand'] ?? '').toString(),
       model: (json['model'] ?? json['title'] ?? '').toString(),
 
-      // 👈 3. ЗАБИРАЕМ ДАННЫЕ ИЗ JSON (Ключи должны совпадать с твоим DTO в Java)
       description: (json['description'] ?? 'No description provided.').toString(),
       capacity: (json['capacity'] as num?)?.toInt() ?? 1,
 
       rating: (json['rating'] as num?)?.toDouble() ?? 4.7,
       imageUrl: imageUrl,
 
-      // Backend использует capacity для мест (seats), если нет отдельного поля
       seats: (json['seats'] as num?)?.toInt() ?? (json['capacity'] as num?)?.toInt() ?? 4,
 
       fuel: (json['fuelType'] ?? json['fuel'] ?? 'Petrol').toString(),
